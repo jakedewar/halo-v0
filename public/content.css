@@ -1,0 +1,98 @@
+.halo-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 320px;
+  height: 100vh;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+  z-index: 999999;
+  transition: transform 0.3s ease-in-out;
+  transform: translateX(100%);
+  border-left: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.halo-sidebar.visible {
+  transform: translateX(0);
+}
+
+.halo-sidebar-header {
+  padding: 1rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.halo-sidebar-content {
+  padding: 1rem;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+}
+
+.halo-note-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+  resize: none;
+  min-height: 100px;
+}
+
+.halo-task-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.halo-note {
+  background: white;
+  padding: 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.halo-task {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.halo-task input[type="checkbox"] {
+  margin-right: 0.5rem;
+}
+
+.halo-task.completed {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.halo-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.25rem;
+  background: #3b82f6;
+  color: white;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.halo-button:hover {
+  background: #2563eb;
+}
+
+.halo-button.secondary {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.halo-button.secondary:hover {
+  background: #e5e7eb;
+} 
