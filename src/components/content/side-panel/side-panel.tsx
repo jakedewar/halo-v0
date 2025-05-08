@@ -13,6 +13,7 @@ import {
 
 import { useSettings } from '@/hooks/useSettings';
 import { MESSAGE_TYPES, Note, Task } from '@/lib/types';
+import { NotesView } from './notes/notes-view';
 
 export default function SidePanel() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -24,6 +25,8 @@ export default function SidePanel() {
   const [filterOrbit, setFilterOrbit] = useState<string>('All Orbits');
   const [filterScope, setFilterScope] = useState<'url' | 'global'>('global');
   const [creationScope, setCreationScope] = useState<'url' | 'global'>('url');
+  const [creationOrbit, setCreationOrbit] = useState<string>('Ungrouped');
+  const [isCreationOrbitDropdownOpen, setIsCreationOrbitDropdownOpen] = useState(false);
   const [isOrbitDropdownOpen, setIsOrbitDropdownOpen] = useState(false);
   const [isScopeDropdownOpen, setIsScopeDropdownOpen] = useState(false);
   const [activeMoreMenu, setActiveMoreMenu] = useState<string | null>(null);
@@ -38,6 +41,8 @@ export default function SidePanel() {
     const today = new Date();
     return today;
   });
+  const [isNewOrbitInputVisible, setIsNewOrbitInputVisible] = useState(false);
+  const [newOrbitName, setNewOrbitName] = useState('');
 
   // Add date picker ref
   const datePickerRef = useRef<HTMLDivElement>(null);
@@ -48,9 +53,6 @@ export default function SidePanel() {
 
   // Add new state for orbit assignment
   const [isOrbitAssignmentOpen, setIsOrbitAssignmentOpen] = useState<string | null>(null);
-  const [newOrbitName, setNewOrbitName] = useState('');
-  const [isNewOrbitInputVisible, setIsNewOrbitInputVisible] = useState(false);
-  const orbitDropdownRef = useRef<HTMLDivElement>(null);
 
   // Helper function to check if a date is in the past
   const isDateInPast = (date: Date) => {
@@ -127,7 +129,7 @@ export default function SidePanel() {
         id: Date.now().toString(),
         content: newNote,
         url: creationScope === 'url' ? currentUrl : null,
-        orbit: 'Ungrouped',
+        orbit: creationOrbit,
         scope: creationScope,
         createdAt: Date.now()
       };
@@ -152,6 +154,7 @@ export default function SidePanel() {
         content: newNote,
         url: creationScope === 'url' ? currentUrl : null,
         scope: creationScope,
+        orbit: creationOrbit,
         completed: false,
         createdAt: Date.now(),
         dueDate: selectedDueDate ? selectedDueDate.getTime() : undefined
@@ -279,47 +282,39 @@ export default function SidePanel() {
     setIsScopeDropdownOpen(false);
   };
 
-  // Add click outside handler for orbit dropdown
+  // Update the click outside handler
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Element;
       
-      // Prevent clicks inside dropdowns from closing them
-      if (target.closest('.orbit-dropdown') || 
-          target.closest('.scope-dropdown') || 
-          target.closest('.orbit-assignment-dropdown') ||
-          target.closest('.date-picker-dropdown')) {
+      // Check if clicking inside any of our dropdowns or inputs
+      const isInsideDropdown = 
+        target.closest('.orbit-dropdown') || 
+        target.closest('.scope-dropdown') || 
+        target.closest('.orbit-assignment-dropdown') ||
+        target.closest('.creation-orbit-dropdown') ||
+        target.closest('.new-orbit-input') ||
+        target.closest('.date-picker-dropdown');
+
+      // If clicking inside dropdowns, don't close anything
+      if (isInsideDropdown) {
         return;
       }
 
       // Close all dropdowns when clicking outside
-      if (isOrbitDropdownOpen) {
-        event.preventDefault();
-        setIsOrbitDropdownOpen(false);
-      }
-      
-      if (isScopeDropdownOpen) {
-        event.preventDefault();
-        setIsScopeDropdownOpen(false);
-      }
-
-      if (isOrbitAssignmentOpen) {
-        event.preventDefault();
-        setIsOrbitAssignmentOpen(null);
-        setIsNewOrbitInputVisible(false);
-        setNewOrbitName('');
-      }
-
-      if (isDatePickerOpen) {
-        event.preventDefault();
-        setIsDatePickerOpen(false);
-      }
+      setIsOrbitDropdownOpen(false);
+      setIsScopeDropdownOpen(false);
+      setIsCreationOrbitDropdownOpen(false);
+      setIsOrbitAssignmentOpen(null);
+      setIsNewOrbitInputVisible(false);
+      setNewOrbitName('');
+      setIsDatePickerOpen(false);
     };
 
     // Add the event listener to the document
     document.addEventListener('mousedown', handleClickOutside, true);
     return () => document.removeEventListener('mousedown', handleClickOutside, true);
-  }, [isOrbitDropdownOpen, isScopeDropdownOpen, isOrbitAssignmentOpen, isDatePickerOpen]);
+  }, []);
 
   // Update the orbit dropdown button to stop propagation
   const handleOrbitDropdownToggle = (e: React.MouseEvent) => {
@@ -333,7 +328,7 @@ export default function SidePanel() {
     setIsScopeDropdownOpen(!isScopeDropdownOpen);
   };
 
-  // Update the orbit assignment button to stop propagation
+  // Add function to handle orbit assignment toggle
   const handleOrbitAssignmentToggle = (e: React.MouseEvent, noteId: string) => {
     e.stopPropagation();
     setIsOrbitAssignmentOpen(isOrbitAssignmentOpen === noteId ? null : noteId);
@@ -632,34 +627,117 @@ export default function SidePanel() {
     });
   };
 
-  // Add function to handle task orbit assignment
-  const handleTaskOrbitAssignment = (taskId: string, orbit: string) => {
-    chrome.storage.local.get(['tasks'], (result) => {
-      const updatedTasks = (result.tasks || []).map((task: Task) =>
-        task.id === taskId ? { ...task, orbit } : task
-      );
-      chrome.storage.local.set({ tasks: updatedTasks }, () => {
-        setTasks(updatedTasks);
-        setIsOrbitAssignmentOpen(null);
-      });
-    });
-  };
-
-  // Add function to create new orbit
+  // Update handleCreateNewOrbit to handle creation case
   const handleCreateNewOrbit = () => {
     if (newOrbitName.trim()) {
       const orbit = newOrbitName.trim();
-      if (isOrbitAssignmentOpen) {
-        if (activeTab === 'notes') {
-          handleOrbitAssignment(isOrbitAssignmentOpen, orbit);
-        } else {
-          handleTaskOrbitAssignment(isOrbitAssignmentOpen, orbit);
-        }
+      if (isOrbitAssignmentOpen === 'creation') {
+        setCreationOrbit(orbit);
+      } else if (isOrbitAssignmentOpen) {
+        handleOrbitAssignment(isOrbitAssignmentOpen, orbit);
       }
       setNewOrbitName('');
       setIsNewOrbitInputVisible(false);
+      setIsOrbitAssignmentOpen(null);
+      setIsCreationOrbitDropdownOpen(false); // Close the dropdown after successful creation
     }
   };
+
+  // Add NewOrbitInput component for creation
+  const NewOrbitInput = () => (
+    <div 
+      className={`new-orbit-input ext-absolute ext-right-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[200px] ext-py-2 ext-px-3 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+    >
+      <input
+        type="text"
+        value={newOrbitName}
+        onChange={(e) => setNewOrbitName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            handleCreateNewOrbit();
+          } else if (e.key === 'Escape') {
+            setIsNewOrbitInputVisible(false);
+            setNewOrbitName('');
+            setIsOrbitAssignmentOpen(null);
+            setIsCreationOrbitDropdownOpen(false); // Close the dropdown on escape
+          }
+        }}
+        placeholder="Enter orbit name..."
+        className={`ext-w-full ext-px-2 ext-py-1 ext-rounded ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-border focus:ext-outline-none focus:ext-border-indigo-500/30`}
+        autoFocus
+      />
+      <div className="ext-flex ext-gap-2 ext-mt-2">
+        <button
+          onClick={() => {
+            setIsNewOrbitInputVisible(false);
+            setNewOrbitName('');
+            setIsOrbitAssignmentOpen(null);
+            setIsCreationOrbitDropdownOpen(false); // Close the dropdown on cancel
+          }}
+          className={`ext-flex-1 ext-px-2 ext-py-1 ext-rounded ext-text-xs ${isDarkMode ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05]' : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50'}`}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleCreateNewOrbit}
+          className="ext-flex-1 ext-px-2 ext-py-1 ext-rounded ext-text-xs ext-bg-indigo-500 ext-text-white hover:ext-bg-indigo-400"
+        >
+          Create
+        </button>
+      </div>
+    </div>
+  );
+
+  // Update the creation orbit dropdown render function
+  const renderCreationOrbitDropdown = () => (
+    <div 
+      className={`creation-orbit-dropdown ext-absolute ext-right-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[200px] ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+    >
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setCreationOrbit('Ungrouped');
+          setIsCreationOrbitDropdownOpen(false);
+        }}
+        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
+      >
+        <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> Ungrouped
+      </button>
+      {getUniqueOrbits().map((orbit) => (
+        <button
+          key={orbit}
+          onClick={(e) => {
+            e.stopPropagation();
+            setCreationOrbit(orbit);
+            setIsCreationOrbitDropdownOpen(false);
+          }}
+          className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
+        >
+          <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> {orbit}
+        </button>
+      ))}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+          setIsNewOrbitInputVisible(true);
+          setIsOrbitAssignmentOpen('creation');
+          // Don't close the dropdown here
+        }}
+        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
+      >
+        <Plus className="ext-w-4 ext-h-4 ext-opacity-70" /> New Orbit
+      </button>
+    </div>
+  );
 
   // Add function to get unique orbits
   const getUniqueOrbits = () => {
@@ -670,8 +748,7 @@ export default function SidePanel() {
 
   // Update the OrbitAssignmentDropdown component to include the class
   const OrbitAssignmentDropdown = ({ itemId }: { itemId: string }) => (
-    <div
-      ref={orbitDropdownRef}
+    <div 
       className={`orbit-assignment-dropdown ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
     >
       {!isNewOrbitInputVisible ? (
@@ -682,7 +759,7 @@ export default function SidePanel() {
           >
             <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> Ungrouped
           </button>
-          {getUniqueOrbits().map((orbit) => (
+          {getUniqueOrbits().map((orbit: string) => (
             <button
               key={orbit}
               onClick={() => handleOrbitAssignment(itemId, orbit)}
@@ -710,6 +787,7 @@ export default function SidePanel() {
               } else if (e.key === 'Escape') {
                 setIsNewOrbitInputVisible(false);
                 setNewOrbitName('');
+                setIsOrbitAssignmentOpen(null);
               }
             }}
             placeholder="Enter orbit name..."
@@ -721,6 +799,7 @@ export default function SidePanel() {
               onClick={() => {
                 setIsNewOrbitInputVisible(false);
                 setNewOrbitName('');
+                setIsOrbitAssignmentOpen(null);
               }}
               className={`ext-flex-1 ext-px-2 ext-py-1 ext-rounded ext-text-xs ${isDarkMode ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05]' : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50'}`}
             >
@@ -752,7 +831,12 @@ export default function SidePanel() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="ext-fixed ext-inset-0 ext-bg-black/50 ext-backdrop-blur-sm ext-z-40"
-            onClick={() => setIsOpen(false)}
+            onClick={(e) => {
+              // Only close if clicking directly on the backdrop
+              if (e.target === e.currentTarget) {
+                setIsOpen(false);
+              }
+            }}
           />
           {/* Panel */}
           <motion.div
@@ -837,137 +921,27 @@ export default function SidePanel() {
                       onBack={() => setSelectedNote(null)}
                     />
                   ) : (
-                    <div className="ext-space-y-4">
-                      {/* Filter Bar */}
-                      <div className="ext-flex ext-gap-2 ext-mb-4">
-                        {/* Orbit Filter */}
-                        <div className="ext-relative ext-flex-1">
-                          <button
-                            onClick={handleOrbitDropdownToggle}
-                            className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
-                          >
-                            <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" />
-                            <span className="ext-truncate">{filterOrbit}</span>
-                            <span className={`ext-ml-auto ext-transform ext-transition-transform ${isOrbitDropdownOpen ? 'ext-rotate-180' : ''}`}>▾</span>
-                          </button>
-                          {/* Orbit Dropdown */}
-                          {isOrbitDropdownOpen && renderOrbitDropdown()}
-                        </div>
-
-                        {/* Scope Filter */}
-                        <div className="ext-relative ext-flex-1">
-                          <button
-                            onClick={handleScopeDropdownToggle}
-                            className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
-                          >
-                            {filterScope === 'global' && <Globe className="ext-w-4 ext-h-4 ext-opacity-70" />}
-                            {filterScope === 'url' && <LinkIcon className="ext-w-4 ext-h-4 ext-opacity-70" />}
-                            <span className="ext-truncate">
-                              {filterScope === 'global' ? 'All Notes' : 'Page Notes'}
-                            </span>
-                            <span className={`ext-ml-auto ext-transform ext-transition-transform ${isScopeDropdownOpen ? 'ext-rotate-180' : ''}`}>▾</span>
-                          </button>
-                          {/* Scope Dropdown */}
-                          {isScopeDropdownOpen && renderScopeDropdown()}
-                        </div>
-                      </div>
-
-                      {/* Notes List */}
-                      {notes
-                        .filter(note => {
-                          // First filter by orbit
-                          if (filterOrbit === 'All Orbits') return true;
-                          if (filterOrbit === 'Only Ungrouped Notes') return note.orbit === 'Ungrouped';
-                          return note.orbit === filterOrbit;
-                        })
-                        .filter(note => {
-                          // If global is selected, show all notes
-                          if (filterScope === 'global') return true;
-
-                          // If url is selected, only show notes that match current URL
-                          return note.url === currentUrl;
-                        })
-                        .map(note => (
-                          <div
-                            key={note.id}
-                            onClick={() => setSelectedNote(note)}
-                            className={`ext-p-4 ext-rounded-lg ext-border ${themeClasses} ${themeHoverClasses} ext-transition-colors ext-group ext-cursor-pointer`}
-                          >
-                            <div className="ext-flex ext-items-center ext-gap-2 ext-mb-2">
-                              {/* Orbit pill */}
-                              <div className="ext-flex ext-items-center ext-gap-1">
-                                <span
-                                  onClick={(e) => handleOrbitAssignmentToggle(e, note.id)}
-                                  className={`orbit-button ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ext-cursor-pointer ext-transition-colors ${note.orbit === 'Ungrouped'
-                                    ? isDarkMode
-                                      ? 'ext-bg-white/[0.05] ext-text-white/50 hover:ext-bg-white/[0.1]'
-                                      : 'ext-bg-gray-100 ext-text-gray-500 hover:ext-bg-gray-200'
-                                    : isDarkMode
-                                      ? 'ext-bg-indigo-500/20 ext-text-indigo-300 hover:ext-bg-indigo-500/30'
-                                      : 'ext-bg-indigo-100 ext-text-indigo-600 hover:ext-bg-indigo-200'}`}
-                                >
-                                  <Orbit className="ext-w-3 ext-h-3" /> {note.orbit}
-                                  {isOrbitAssignmentOpen === note.id && (
-                                    <OrbitAssignmentDropdown itemId={note.id} />
-                                  )}
-                                </span>
-                              </div>
-                              {/* Scope pill */}
-                              <span className={`ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ${note.scope === 'global'
-                                ? isDarkMode
-                                  ? 'ext-bg-purple-500/20 ext-text-purple-300'
-                                  : 'ext-bg-purple-100 ext-text-purple-600'
-                                : isDarkMode
-                                  ? 'ext-bg-blue-500/20 ext-text-blue-300'
-                                  : 'ext-bg-blue-100 ext-text-blue-600'}`}>
-                                {note.scope === 'global' ? <Globe className="ext-w-3 ext-h-3" /> : <LinkIcon className="ext-w-3 ext-h-3" />} {note.scope === 'global' ? 'Unlinked' : 'Linked'}
-                              </span>
-                            </div>
-                            <p className={`ext-text-sm ${isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-800'} ext-mb-2 ext-line-clamp-3`}>{note.content}</p>
-                            <div className="ext-flex ext-items-center ext-justify-between">
-                              <div className="ext-flex ext-items-center ext-gap-2">
-                                {note.url && (
-                                  <a
-                                    href={note.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className={`ext-flex ext-items-center ext-gap-1 ext-text-xs ${isDarkMode ? 'ext-text-white/30 hover:ext-text-indigo-300' : 'ext-text-gray-400 hover:ext-text-indigo-500'} ext-transition-colors ext-max-w-[200px]`}
-                                  >
-                                    <LinkIcon className="ext-w-3 ext-h-3 ext-shrink-0" />
-                                    <span className="ext-truncate">{new URL(note.url).hostname}</span>
-                                  </a>
-                                )}
-                              </div>
-                              <div className="ext-flex ext-items-center ext-gap-1 ext-invisible group-hover:ext-visible">
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleShareNote(note);
-                                  }}
-                                  className={`ext-p-1 ext-rounded ${isDarkMode ? 'hover:ext-bg-white/10' : 'hover:ext-bg-gray-100'} ext-transition-colors ext-relative`}
-                                >
-                                  <Share2 className={`ext-w-3 ext-h-3 ${isDarkMode ? 'ext-text-white/50 hover:ext-text-indigo-300' : 'ext-text-gray-500 hover:ext-text-indigo-500'}`} />
-                                  {copiedNoteId === note.id && (
-                                    <span className={`ext-absolute ext-left-1/2 ext-top-1/2 -ext-translate-x-1/2 -ext-translate-y-1/2 ext-text-xs ext-font-medium ext-px-2 ext-py-1 ext-rounded ext-bg-indigo-500 ext-text-white ext-whitespace-nowrap`}>
-                                      Copied!
-                                    </span>
-                                  )}
-                                </button>
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setNoteToDelete(note.id);
-                                  }}
-                                  className={`ext-p-1 ext-rounded ${isDarkMode ? 'hover:ext-bg-white/10' : 'hover:ext-bg-gray-100'} ext-transition-colors`}
-                                >
-                                  <Trash className={`ext-w-3 ext-h-3 ${isDarkMode ? 'ext-text-red-400 hover:ext-text-red-300' : 'ext-text-red-500 hover:ext-text-red-600'}`} />
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                    </div>
+                    <NotesView
+                      notes={notes}
+                      isDarkMode={isDarkMode}
+                      currentUrl={currentUrl}
+                      filterOrbit={filterOrbit}
+                      filterScope={filterScope}
+                      isOrbitDropdownOpen={isOrbitDropdownOpen}
+                      isScopeDropdownOpen={isScopeDropdownOpen}
+                      isOrbitAssignmentOpen={isOrbitAssignmentOpen}
+                      handleOrbitDropdownToggle={handleOrbitDropdownToggle}
+                      handleScopeDropdownToggle={handleScopeDropdownToggle}
+                      handleOrbitFilter={handleOrbitFilter}
+                      handleScopeFilter={handleScopeFilter}
+                      handleOrbitAssignmentToggle={handleOrbitAssignmentToggle}
+                      handleShareNote={handleShareNote}
+                      setNoteToDelete={setNoteToDelete}
+                      copiedNoteId={copiedNoteId}
+                      handleOrbitAssignment={handleOrbitAssignment}
+                      setIsNewOrbitInputVisible={setIsNewOrbitInputVisible}
+                      setIsOrbitAssignmentOpen={setIsOrbitAssignmentOpen}
+                    />
                   )
                 ) : (
                   <div className="ext-space-y-4">
@@ -1083,135 +1057,155 @@ export default function SidePanel() {
                 <div className="ext-space-y-4">
                   {/* Quick Toggle Buttons */}
                   <div className="ext-flex ext-gap-2 ext-relative ext-z-[51]">
-                    {/* Linked/Unlinked Toggle Button */}
-                    <button
-                      onClick={() => setCreationScope(creationScope === 'url' ? 'global' : 'url')}
-                      className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${creationScope === 'url'
-                        ? isDarkMode
-                          ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                          : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                        : isDarkMode
-                          ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
-                          : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
-                        }`}
-                    >
-                      {creationScope === 'url' ? (
-                        <LinkIcon className="ext-w-3 ext-h-3" />
-                      ) : (
-                        <Unlink className="ext-w-3 ext-h-3" />
-                      )}
-                    </button>
+                    {/* Left side buttons */}
+                    <div className="ext-flex ext-gap-2">
+                      {/* Linked/Unlinked Toggle Button */}
+                      <button
+                        onClick={() => setCreationScope(creationScope === 'url' ? 'global' : 'url')}
+                        className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${creationScope === 'url'
+                          ? isDarkMode
+                            ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
+                            : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
+                          : isDarkMode
+                            ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
+                            : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
+                          }`}
+                      >
+                        {creationScope === 'url' ? (
+                          <LinkIcon className="ext-w-3 ext-h-3" />
+                        ) : (
+                          <Unlink className="ext-w-3 ext-h-3" />
+                        )}
+                      </button>
 
-                    {/* Due Date Button (only visible for tasks) */}
-                    {activeTab === 'tasks' && (
-                      <div className="ext-relative">
-                        <button
-                          onClick={handleDatePickerToggle}
-                          className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${selectedDueDate
-                            ? isDarkMode
-                              ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                              : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                            : isDarkMode
-                              ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
-                              : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
-                            }`}
-                        >
-                          <Calendar className="ext-w-3 ext-h-3" />
-                        </button>
-
-                        {/* Date Picker Dropdown */}
-                        {isDatePickerOpen && (
-                          <div
-                            ref={datePickerRef}
-                            className={`date-picker-dropdown ext-absolute ext-left-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[300px] ext-p-4 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+                      {/* Due Date Button (only visible for tasks) */}
+                      {activeTab === 'tasks' && (
+                        <div className="ext-relative">
+                          <button
+                            onClick={handleDatePickerToggle}
+                            className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${selectedDueDate
+                              ? isDarkMode
+                                ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
+                                : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
+                              : isDarkMode
+                                ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
+                                : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
+                              }`}
                           >
-                            {/* Navigation Controls */}
-                            <div className="ext-flex ext-justify-between ext-items-center ext-mb-3">
-                              <button
-                                onClick={() => {
-                                  const newStart = new Date(currentWeekStart);
-                                  newStart.setDate(newStart.getDate() - 7);
-                                  setCurrentWeekStart(newStart);
-                                }}
-                                disabled={isCurrentWeek(currentWeekStart)}
-                                className={`ext-p-1 ext-rounded-full ${isCurrentWeek(currentWeekStart)
-                                  ? isDarkMode
-                                    ? 'ext-text-white/20 ext-cursor-not-allowed'
-                                    : 'ext-text-gray-300 ext-cursor-not-allowed'
-                                  : isDarkMode
+                            <Calendar className="ext-w-3 ext-h-3" />
+                          </button>
+
+                          {/* Date Picker Dropdown */}
+                          {isDatePickerOpen && (
+                            <div
+                              ref={datePickerRef}
+                              className={`date-picker-dropdown ext-absolute ext-left-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[300px] ext-p-4 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+                            >
+                              {/* Navigation Controls */}
+                              <div className="ext-flex ext-justify-between ext-items-center ext-mb-3">
+                                <button
+                                  onClick={() => {
+                                    const newStart = new Date(currentWeekStart);
+                                    newStart.setDate(newStart.getDate() - 7);
+                                    setCurrentWeekStart(newStart);
+                                  }}
+                                  disabled={isCurrentWeek(currentWeekStart)}
+                                  className={`ext-p-1 ext-rounded-full ${isCurrentWeek(currentWeekStart)
+                                    ? isDarkMode
+                                      ? 'ext-text-white/20 ext-cursor-not-allowed'
+                                      : 'ext-text-gray-300 ext-cursor-not-allowed'
+                                    : isDarkMode
+                                      ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
+                                      : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
+                                    } ext-transition-colors`}
+                                >
+                                  <ChevronLeft className="ext-w-4 ext-h-4" />
+                                </button>
+                                <span className={`ext-text-xs ext-font-medium ${isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-600'
+                                  }`}>
+                                  {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    const newStart = new Date(currentWeekStart);
+                                    newStart.setDate(newStart.getDate() + 7);
+                                    setCurrentWeekStart(newStart);
+                                  }}
+                                  className={`ext-p-1 ext-rounded-full ${isDarkMode
                                     ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
                                     : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
-                                  } ext-transition-colors`}
-                              >
-                                <ChevronLeft className="ext-w-4 ext-h-4" />
-                              </button>
-                              <span className={`ext-text-xs ext-font-medium ${isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-600'
-                                }`}>
-                                {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                              </span>
+                                    } ext-transition-colors`}
+                                >
+                                  <ChevronRight className="ext-w-4 ext-h-4" />
+                                </button>
+                              </div>
+                              <div className="ext-grid ext-grid-cols-7 ext-gap-2">
+                                {Array.from({ length: 7 }).map((_, i) => {
+                                  const date = new Date(currentWeekStart);
+                                  date.setDate(date.getDate() + i);
+                                  const isPastDate = isDateInPast(date);
+
+                                  return (
+                                    <button
+                                      key={i}
+                                      onClick={() => {
+                                        if (!isPastDate) {
+                                          setSelectedDueDate(date);
+                                          setIsDatePickerOpen(false);
+                                        }
+                                      }}
+                                      disabled={isPastDate}
+                                      className={`ext-p-2 ext-rounded ext-text-center ext-text-xs ${selectedDueDate?.toDateString() === date.toDateString()
+                                        ? 'ext-bg-indigo-500 ext-text-white'
+                                        : isPastDate
+                                          ? isDarkMode
+                                            ? 'ext-text-white/20 ext-cursor-not-allowed'
+                                            : 'ext-text-gray-300 ext-cursor-not-allowed'
+                                          : isDarkMode
+                                            ? 'ext-text-white/70 hover:ext-bg-white/[0.05]'
+                                            : 'ext-text-gray-800 hover:ext-bg-gray-50'
+                                        }`}
+                                    >
+                                      <div className="ext-font-medium">{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                                      <div className="ext-mt-1">{date.getDate()}</div>
+                                    </button>
+                                  );
+                                })}
+                              </div>
                               <button
                                 onClick={() => {
-                                  const newStart = new Date(currentWeekStart);
-                                  newStart.setDate(newStart.getDate() + 7);
-                                  setCurrentWeekStart(newStart);
+                                  setSelectedDueDate(null);
+                                  setIsDatePickerOpen(false);
                                 }}
-                                className={`ext-p-1 ext-rounded-full ${isDarkMode
-                                  ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
-                                  : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
-                                  } ext-transition-colors`}
+                                className={`ext-w-full ext-mt-3 ext-p-2 ext-text-xs ext-rounded ${isDarkMode
+                                  ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05] hover:ext-bg-white/[0.1]'
+                                  : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50 hover:ext-bg-gray-100'
+                                  }`}
                               >
-                                <ChevronRight className="ext-w-4 ext-h-4" />
+                                Clear Date
                               </button>
                             </div>
-                            <div className="ext-grid ext-grid-cols-7 ext-gap-2">
-                              {Array.from({ length: 7 }).map((_, i) => {
-                                const date = new Date(currentWeekStart);
-                                date.setDate(date.getDate() + i);
-                                const isPastDate = isDateInPast(date);
+                          )}
+                        </div>
+                      )}
+                    </div>
 
-                                return (
-                                  <button
-                                    key={i}
-                                    onClick={() => {
-                                      if (!isPastDate) {
-                                        setSelectedDueDate(date);
-                                        setIsDatePickerOpen(false);
-                                      }
-                                    }}
-                                    disabled={isPastDate}
-                                    className={`ext-p-2 ext-rounded ext-text-center ext-text-xs ${selectedDueDate?.toDateString() === date.toDateString()
-                                      ? 'ext-bg-indigo-500 ext-text-white'
-                                      : isPastDate
-                                        ? isDarkMode
-                                          ? 'ext-text-white/20 ext-cursor-not-allowed'
-                                          : 'ext-text-gray-300 ext-cursor-not-allowed'
-                                        : isDarkMode
-                                          ? 'ext-text-white/70 hover:ext-bg-white/[0.05]'
-                                          : 'ext-text-gray-800 hover:ext-bg-gray-50'
-                                      }`}
-                                  >
-                                    <div className="ext-font-medium">{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                                    <div className="ext-mt-1">{date.getDate()}</div>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                            <button
-                              onClick={() => {
-                                setSelectedDueDate(null);
-                                setIsDatePickerOpen(false);
-                              }}
-                              className={`ext-w-full ext-mt-3 ext-p-2 ext-text-xs ext-rounded ${isDarkMode
-                                ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05] hover:ext-bg-white/[0.1]'
-                                : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50 hover:ext-bg-gray-100'
-                                }`}
-                            >
-                              Clear Date
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    {/* Right side - Orbit Selection */}
+                    <div className="ext-relative ext-ml-auto">
+                      <button
+                        onClick={() => setIsCreationOrbitDropdownOpen(!isCreationOrbitDropdownOpen)}
+                        className={`ext-flex ext-items-center ext-gap-2 ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${isDarkMode ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]' : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'}`}
+                      >
+                        <Orbit className="ext-w-3 ext-h-3" />
+                        <span className="ext-truncate">{creationOrbit}</span>
+                      </button>
+
+                      {/* Creation Orbit Dropdown */}
+                      {isCreationOrbitDropdownOpen && renderCreationOrbitDropdown()}
+
+                      {/* New Orbit Input */}
+                      {isOrbitAssignmentOpen === 'creation' && <NewOrbitInput />}
+                    </div>
                   </div>
 
                   {/* Rich Text Input */}
