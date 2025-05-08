@@ -279,9 +279,78 @@ export default function SidePanel() {
     setIsScopeDropdownOpen(false);
   };
 
-  // Update the dropdown content JSX
+  // Add click outside handler for orbit dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element;
+      
+      // Prevent clicks inside dropdowns from closing them
+      if (target.closest('.orbit-dropdown') || 
+          target.closest('.scope-dropdown') || 
+          target.closest('.orbit-assignment-dropdown') ||
+          target.closest('.date-picker-dropdown')) {
+        return;
+      }
+
+      // Close all dropdowns when clicking outside
+      if (isOrbitDropdownOpen) {
+        event.preventDefault();
+        setIsOrbitDropdownOpen(false);
+      }
+      
+      if (isScopeDropdownOpen) {
+        event.preventDefault();
+        setIsScopeDropdownOpen(false);
+      }
+
+      if (isOrbitAssignmentOpen) {
+        event.preventDefault();
+        setIsOrbitAssignmentOpen(null);
+        setIsNewOrbitInputVisible(false);
+        setNewOrbitName('');
+      }
+
+      if (isDatePickerOpen) {
+        event.preventDefault();
+        setIsDatePickerOpen(false);
+      }
+    };
+
+    // Add the event listener to the document
+    document.addEventListener('mousedown', handleClickOutside, true);
+    return () => document.removeEventListener('mousedown', handleClickOutside, true);
+  }, [isOrbitDropdownOpen, isScopeDropdownOpen, isOrbitAssignmentOpen, isDatePickerOpen]);
+
+  // Update the orbit dropdown button to stop propagation
+  const handleOrbitDropdownToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsOrbitDropdownOpen(!isOrbitDropdownOpen);
+  };
+
+  // Update the scope dropdown button to stop propagation
+  const handleScopeDropdownToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsScopeDropdownOpen(!isScopeDropdownOpen);
+  };
+
+  // Update the orbit assignment button to stop propagation
+  const handleOrbitAssignmentToggle = (e: React.MouseEvent, noteId: string) => {
+    e.stopPropagation();
+    setIsOrbitAssignmentOpen(isOrbitAssignmentOpen === noteId ? null : noteId);
+  };
+
+  // Update the date picker button to stop propagation
+  const handleDatePickerToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsDatePickerOpen(!isDatePickerOpen);
+  };
+
+  // Update the orbit dropdown render function
   const renderOrbitDropdown = () => (
-    <div className={`ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}>
+    <div 
+      className={`orbit-dropdown ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <button
         onClick={() => handleOrbitFilter('All Orbits')}
         className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
@@ -306,8 +375,12 @@ export default function SidePanel() {
     </div>
   );
 
+  // Update the scope dropdown render function
   const renderScopeDropdown = () => (
-    <div className={`ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}>
+    <div 
+      className={`scope-dropdown ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+      onClick={(e) => e.stopPropagation()}
+    >
       <button
         onClick={() => handleScopeFilter('global')}
         className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
@@ -595,25 +668,11 @@ export default function SidePanel() {
     return Array.from(new Set([...noteOrbits, ...taskOrbits]));
   };
 
-  // Add click outside handler for orbit dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (orbitDropdownRef.current && !orbitDropdownRef.current.contains(event.target as Node)) {
-        setIsOrbitAssignmentOpen(null);
-        setIsNewOrbitInputVisible(false);
-        setNewOrbitName('');
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Update OrbitAssignmentDropdown component to include the ref
+  // Update the OrbitAssignmentDropdown component to include the class
   const OrbitAssignmentDropdown = ({ itemId }: { itemId: string }) => (
     <div
       ref={orbitDropdownRef}
-      className={`ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+      className={`orbit-assignment-dropdown ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
     >
       {!isNewOrbitInputVisible ? (
         <>
@@ -784,7 +843,7 @@ export default function SidePanel() {
                         {/* Orbit Filter */}
                         <div className="ext-relative ext-flex-1">
                           <button
-                            onClick={() => setIsOrbitDropdownOpen(!isOrbitDropdownOpen)}
+                            onClick={handleOrbitDropdownToggle}
                             className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
                           >
                             <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" />
@@ -798,7 +857,7 @@ export default function SidePanel() {
                         {/* Scope Filter */}
                         <div className="ext-relative ext-flex-1">
                           <button
-                            onClick={() => setIsScopeDropdownOpen(!isScopeDropdownOpen)}
+                            onClick={handleScopeDropdownToggle}
                             className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
                           >
                             {filterScope === 'global' && <Globe className="ext-w-4 ext-h-4 ext-opacity-70" />}
@@ -838,10 +897,7 @@ export default function SidePanel() {
                               {/* Orbit pill */}
                               <div className="ext-flex ext-items-center ext-gap-1">
                                 <span
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setIsOrbitAssignmentOpen(isOrbitAssignmentOpen === note.id ? null : note.id);
-                                  }}
+                                  onClick={(e) => handleOrbitAssignmentToggle(e, note.id)}
                                   className={`orbit-button ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ext-cursor-pointer ext-transition-colors ${note.orbit === 'Ungrouped'
                                     ? isDarkMode
                                       ? 'ext-bg-white/[0.05] ext-text-white/50 hover:ext-bg-white/[0.1]'
@@ -920,7 +976,7 @@ export default function SidePanel() {
                       {/* Orbit Filter */}
                       <div className="ext-relative ext-flex-1">
                         <button
-                          onClick={() => setIsOrbitDropdownOpen(!isOrbitDropdownOpen)}
+                          onClick={handleOrbitDropdownToggle}
                           className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
                         >
                           <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" />
@@ -934,7 +990,7 @@ export default function SidePanel() {
                       {/* Scope Filter */}
                       <div className="ext-relative ext-flex-1">
                         <button
-                          onClick={() => setIsScopeDropdownOpen(!isScopeDropdownOpen)}
+                          onClick={handleScopeDropdownToggle}
                           className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
                         >
                           {filterScope === 'global' && <Globe className="ext-w-4 ext-h-4 ext-opacity-70" />}
@@ -1050,7 +1106,7 @@ export default function SidePanel() {
                     {activeTab === 'tasks' && (
                       <div className="ext-relative">
                         <button
-                          onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                          onClick={handleDatePickerToggle}
                           className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${selectedDueDate
                             ? isDarkMode
                               ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
@@ -1067,7 +1123,7 @@ export default function SidePanel() {
                         {isDatePickerOpen && (
                           <div
                             ref={datePickerRef}
-                            className={`ext-absolute ext-left-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[300px] ext-p-4 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
+                            className={`date-picker-dropdown ext-absolute ext-left-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[300px] ext-p-4 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
                           >
                             {/* Navigation Controls */}
                             <div className="ext-flex ext-justify-between ext-items-center ext-mb-3">
