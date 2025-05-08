@@ -16,3 +16,23 @@ export interface GeneralSettings {
   theme: Theme;
   hide_sidebar_button: boolean;
 }
+
+export interface Note {
+  id: string;
+  content: string;
+  url: string | null | undefined;
+  orbit?: string;
+  scope?: 'url' | 'global';
+  createdAt: number;
+}
+
+export interface Task {
+  id: string;
+  content: string;
+  completed: boolean;
+  url: string | null | undefined;
+  orbit?: string;
+  scope?: 'url' | 'global';
+  createdAt: number;
+  dueDate?: number;  // Timestamp in milliseconds
+}
