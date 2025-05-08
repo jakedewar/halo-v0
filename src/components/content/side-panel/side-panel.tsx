@@ -695,7 +695,7 @@ export default function SidePanel() {
               <div className={`ext-pt-6 ext-mt-6 ext-border-t ${isDarkMode ? 'ext-border-white/[0.05]' : 'ext-border-gray-200'}`}>
                 <div className="ext-space-y-4">
                   {/* Quick Toggle Buttons */}
-                  <div className="ext-flex ext-gap-2">
+                  <div className="ext-flex ext-gap-2 ext-relative ext-z-[51]">
                     {/* Linked/Unlinked Toggle Button */}
                     <button
                       onClick={() => setCreationScope(creationScope === 'url' ? 'global' : 'url')}
@@ -718,116 +718,118 @@ export default function SidePanel() {
 
                     {/* Due Date Button (only visible for tasks) */}
                     {activeTab === 'tasks' && (
-                      <button
-                        onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
-                        className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${
-                          selectedDueDate
-                            ? isDarkMode
-                              ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                              : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                            : isDarkMode
-                              ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
-                              : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
-                        }`}
-                      >
-                        <Calendar className="ext-w-3 ext-h-3" />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Date Picker Dropdown */}
-                  {isDatePickerOpen && activeTab === 'tasks' && (
-                    <div className={`ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-p-4 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}>
-                      {/* Navigation Controls */}
-                      <div className="ext-flex ext-justify-between ext-items-center ext-mb-3">
+                      <div className="ext-relative">
                         <button
-                          onClick={() => {
-                            const newStart = new Date(currentWeekStart);
-                            newStart.setDate(newStart.getDate() - 7);
-                            setCurrentWeekStart(newStart);
-                          }}
-                          disabled={isCurrentWeek(currentWeekStart)}
-                          className={`ext-p-1 ext-rounded-full ${
-                            isCurrentWeek(currentWeekStart)
+                          onClick={() => setIsDatePickerOpen(!isDatePickerOpen)}
+                          className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${
+                            selectedDueDate
                               ? isDarkMode
-                                ? 'ext-text-white/20 ext-cursor-not-allowed'
-                                : 'ext-text-gray-300 ext-cursor-not-allowed'
+                                ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
+                                : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
                               : isDarkMode
-                                ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
-                                : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
-                          } ext-transition-colors`}
+                                ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
+                                : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
+                          }`}
                         >
-                          <ChevronLeft className="ext-w-4 ext-h-4" />
+                          <Calendar className="ext-w-3 ext-h-3" />
                         </button>
-                        <span className={`ext-text-xs ext-font-medium ${
-                          isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-600'
-                        }`}>
-                          {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                        </span>
-                        <button
-                          onClick={() => {
-                            const newStart = new Date(currentWeekStart);
-                            newStart.setDate(newStart.getDate() + 7);
-                            setCurrentWeekStart(newStart);
-                          }}
-                          className={`ext-p-1 ext-rounded-full ${
-                            isDarkMode
-                              ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
-                              : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
-                          } ext-transition-colors`}
-                        >
-                          <ChevronRight className="ext-w-4 ext-h-4" />
-                        </button>
-                      </div>
-                      <div className="ext-grid ext-grid-cols-7 ext-gap-2">
-                        {Array.from({ length: 7 }).map((_, i) => {
-                          const date = new Date(currentWeekStart);
-                          date.setDate(date.getDate() + i);
-                          const isPastDate = isDateInPast(date);
-                          
-                          return (
-                            <button
-                              key={i}
-                              onClick={() => {
-                                if (!isPastDate) {
-                                  setSelectedDueDate(date);
-                                  setIsDatePickerOpen(false);
-                                }
-                              }}
-                              disabled={isPastDate}
-                              className={`ext-p-2 ext-rounded ext-text-center ext-text-xs ${
-                                selectedDueDate?.toDateString() === date.toDateString()
-                                  ? 'ext-bg-indigo-500 ext-text-white'
-                                  : isPastDate
+
+                        {/* Date Picker Dropdown */}
+                        {isDatePickerOpen && (
+                          <div className={`ext-absolute ext-left-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[300px] ext-p-4 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}>
+                            {/* Navigation Controls */}
+                            <div className="ext-flex ext-justify-between ext-items-center ext-mb-3">
+                              <button
+                                onClick={() => {
+                                  const newStart = new Date(currentWeekStart);
+                                  newStart.setDate(newStart.getDate() - 7);
+                                  setCurrentWeekStart(newStart);
+                                }}
+                                disabled={isCurrentWeek(currentWeekStart)}
+                                className={`ext-p-1 ext-rounded-full ${
+                                  isCurrentWeek(currentWeekStart)
                                     ? isDarkMode
                                       ? 'ext-text-white/20 ext-cursor-not-allowed'
                                       : 'ext-text-gray-300 ext-cursor-not-allowed'
                                     : isDarkMode
-                                      ? 'ext-text-white/70 hover:ext-bg-white/[0.05]'
-                                      : 'ext-text-gray-800 hover:ext-bg-gray-50'
+                                      ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
+                                      : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
+                                } ext-transition-colors`}
+                              >
+                                <ChevronLeft className="ext-w-4 ext-h-4" />
+                              </button>
+                              <span className={`ext-text-xs ext-font-medium ${
+                                isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-600'
+                              }`}>
+                                {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  const newStart = new Date(currentWeekStart);
+                                  newStart.setDate(newStart.getDate() + 7);
+                                  setCurrentWeekStart(newStart);
+                                }}
+                                className={`ext-p-1 ext-rounded-full ${
+                                  isDarkMode
+                                    ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
+                                    : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
+                                } ext-transition-colors`}
+                              >
+                                <ChevronRight className="ext-w-4 ext-h-4" />
+                              </button>
+                            </div>
+                            <div className="ext-grid ext-grid-cols-7 ext-gap-2">
+                              {Array.from({ length: 7 }).map((_, i) => {
+                                const date = new Date(currentWeekStart);
+                                date.setDate(date.getDate() + i);
+                                const isPastDate = isDateInPast(date);
+                                
+                                return (
+                                  <button
+                                    key={i}
+                                    onClick={() => {
+                                      if (!isPastDate) {
+                                        setSelectedDueDate(date);
+                                        setIsDatePickerOpen(false);
+                                      }
+                                    }}
+                                    disabled={isPastDate}
+                                    className={`ext-p-2 ext-rounded ext-text-center ext-text-xs ${
+                                      selectedDueDate?.toDateString() === date.toDateString()
+                                        ? 'ext-bg-indigo-500 ext-text-white'
+                                        : isPastDate
+                                          ? isDarkMode
+                                            ? 'ext-text-white/20 ext-cursor-not-allowed'
+                                            : 'ext-text-gray-300 ext-cursor-not-allowed'
+                                          : isDarkMode
+                                            ? 'ext-text-white/70 hover:ext-bg-white/[0.05]'
+                                            : 'ext-text-gray-800 hover:ext-bg-gray-50'
+                                    }`}
+                                  >
+                                    <div className="ext-font-medium">{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                                    <div className="ext-mt-1">{date.getDate()}</div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <button
+                              onClick={() => {
+                                setSelectedDueDate(null);
+                                setIsDatePickerOpen(false);
+                              }}
+                              className={`ext-w-full ext-mt-3 ext-p-2 ext-text-xs ext-rounded ${
+                                isDarkMode
+                                  ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05] hover:ext-bg-white/[0.1]'
+                                  : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50 hover:ext-bg-gray-100'
                               }`}
                             >
-                              <div className="ext-font-medium">{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                              <div className="ext-mt-1">{date.getDate()}</div>
+                              Clear Date
                             </button>
-                          );
-                        })}
+                          </div>
+                        )}
                       </div>
-                      <button
-                        onClick={() => {
-                          setSelectedDueDate(null);
-                          setIsDatePickerOpen(false);
-                        }}
-                        className={`ext-w-full ext-mt-3 ext-p-2 ext-text-xs ext-rounded ${
-                          isDarkMode
-                            ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05] hover:ext-bg-white/[0.1]'
-                            : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50 hover:ext-bg-gray-100'
-                        }`}
-                      >
-                        Clear Date
-                      </button>
-                    </div>
-                  )}
+                    )}
+                  </div>
 
                   {/* Rich Text Input */}
                   <div className="ext-flex ext-gap-2 ext-mb-20">
