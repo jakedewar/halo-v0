@@ -1,6 +1,7 @@
 export enum MESSAGE_TYPES {
   GENERAL_SETTINGS_UPDATED = 'GENERAL_SETTINGS_UPDATED',
   OPEN_OPTIONS = 'OPEN_OPTIONS',
+  TOGGLE_SIDEBAR = 'TOGGLE_SIDEBAR'
 }
 
 export type Theme = 'dark' | 'light';

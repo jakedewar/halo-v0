@@ -106,6 +106,31 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return true;
 });
 
+// Handle keyboard commands
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === 'toggle-sidebar') {
+    try {
+      // Get the active tab
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      
+      if (activeTab?.id) {
+        // Ensure content script is injected
+        await chrome.scripting.executeScript({
+          target: { tabId: activeTab.id },
+          files: ['src/entryPoints/content.tsx']
+        });
+
+        // Send toggle message
+        await chrome.tabs.sendMessage(activeTab.id, { 
+          type: MESSAGE_TYPES.TOGGLE_SIDEBAR 
+        });
+      }
+    } catch (error) {
+      console.error('Error handling toggle command:', error);
+    }
+  }
+});
+
 // Handle settings changes
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === 'sync' && changes[GENERAL_SETTINGS_KEY]) {

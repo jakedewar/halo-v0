@@ -1,8 +1,8 @@
-import { ChevronLeft, Globe, LinkIcon, Orbit, Share2, Trash } from 'lucide-react';
+import { ChevronLeft, Globe, LinkIcon, Share2, Trash } from 'lucide-react';
 import { Note } from '@/lib/types';
-import { OrbitAssignmentDropdown } from '../shared/orbit-assignment-dropdown';
+import { OrbitDropdown } from '../../components/Shared/OrbitDropdown';
 
-interface NoteDetailViewProps {
+interface NoteDetailProps {
   note: Note;
   onBack: () => void;
   isDarkMode: boolean;
@@ -14,21 +14,21 @@ interface NoteDetailViewProps {
   handleOrbitAssignment: (noteId: string, orbit: string) => void;
   setIsNewOrbitInputVisible: (isVisible: boolean) => void;
   setIsOrbitAssignmentOpen: (id: string | null) => void;
+  existingOrbits: string[];
 }
 
-export function NoteDetailView({
+export function NoteDetail({
   note,
   onBack,
   isDarkMode,
   handleShareNote,
   setNoteToDelete,
   copiedNoteId,
-  isOrbitAssignmentOpen,
-  handleOrbitAssignmentToggle,
   handleOrbitAssignment,
   setIsNewOrbitInputVisible,
   setIsOrbitAssignmentOpen,
-}: NoteDetailViewProps) {
+  existingOrbits,
+}: NoteDetailProps) {
   const themeClasses = isDarkMode
     ? 'ext-bg-[#030303] ext-text-white/70 ext-border-white/[0.05]'
     : 'ext-bg-white ext-text-gray-800 ext-border-gray-200';
@@ -58,39 +58,28 @@ export function NoteDetailView({
           {/* Metadata */}
           <div className="ext-flex ext-items-center ext-gap-2 ext-mb-4">
             <div className="ext-flex ext-items-center ext-gap-1">
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleOrbitAssignmentToggle(e, note.id);
+              <OrbitDropdown
+                value={note.orbit || 'Ungrouped'}
+                onChange={(orbit) => handleOrbitAssignment(note.id, orbit)}
+                orbits={['Ungrouped', ...existingOrbits.filter(orbit => orbit !== 'Ungrouped')]}
+                isDarkMode={isDarkMode}
+                onNewOrbit={() => {
+                  setIsNewOrbitInputVisible(true);
+                  setIsOrbitAssignmentOpen(note.id);
                 }}
-                className={`orbit-button ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ext-cursor-pointer ext-transition-colors ${note.orbit === 'Ungrouped'
-                  ? isDarkMode
-                    ? 'ext-bg-white/[0.05] ext-text-white/50 hover:ext-bg-white/[0.1]'
-                    : 'ext-bg-gray-100 ext-text-gray-500 hover:ext-bg-gray-200'
-                  : isDarkMode
-                    ? 'ext-bg-indigo-500/20 ext-text-indigo-300 hover:ext-bg-indigo-500/30'
-                    : 'ext-bg-indigo-100 ext-text-indigo-600 hover:ext-bg-indigo-200'}`}
-              >
-                <Orbit className="ext-w-3 ext-h-3" /> {note.orbit}
-                {isOrbitAssignmentOpen === note.id && (
-                  <OrbitAssignmentDropdown
-                    itemId={note.id}
-                    isDarkMode={isDarkMode}
-                    notes={[note]}
-                    handleOrbitAssignment={handleOrbitAssignment}
-                    setIsNewOrbitInputVisible={setIsNewOrbitInputVisible}
-                    setIsOrbitAssignmentOpen={setIsOrbitAssignmentOpen}
-                  />
-                )}
-              </span>
+                variant="default"
+                className="ext-min-w-[120px]"
+              />
             </div>
-            <span className={`ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ${note.scope === 'global'
-              ? isDarkMode
-                ? 'ext-bg-purple-500/20 ext-text-purple-300'
-                : 'ext-bg-purple-100 ext-text-purple-600'
-              : isDarkMode
-                ? 'ext-bg-blue-500/20 ext-text-blue-300'
-                : 'ext-bg-blue-100 ext-text-blue-600'}`}>
+            <span className={`ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ${
+              note.scope === 'global'
+                ? isDarkMode
+                  ? 'ext-bg-purple-500/20 ext-text-purple-300'
+                  : 'ext-bg-purple-100 ext-text-purple-600'
+                : isDarkMode
+                  ? 'ext-bg-blue-500/20 ext-text-blue-300'
+                  : 'ext-bg-blue-100 ext-text-blue-600'
+            }`}>
               {note.scope === 'global' ? <Globe className="ext-w-3 ext-h-3" /> : <LinkIcon className="ext-w-3 ext-h-3" />} {note.scope === 'global' ? 'Unlinked' : 'Linked'}
             </span>
           </div>

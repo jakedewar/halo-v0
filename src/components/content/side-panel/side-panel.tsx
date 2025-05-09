@@ -1,48 +1,42 @@
 import { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Circle, Plus, Search, Check, Link as LinkIcon,
-  Orbit, Share2, HelpCircle, Sun, Moon,
-  Settings, Globe, Calendar,
-  Trash,
-  AlertCircle,
-  Unlink,
-  ChevronLeft,
-  ChevronRight,
+  Circle,
+  HelpCircle, Sun, Moon,
+  Settings,
 } from 'lucide-react';
 
 import { useSettings } from '@/hooks/useSettings';
 import { MESSAGE_TYPES, Note, Task } from '@/lib/types';
-import { NotesView } from './notes/notes-view';
+import { NotesView } from './components/Notes/NotesView';
+import { TasksView } from './components/Tasks/TasksView';
+import { Header } from './components/Header/Header';
+import { SearchBar } from './components/Header/SearchBar';
+import { TabNavigation } from './components/Navigation/TabNavigation';
+import { CreationBar } from './components/Creation/CreationBar';
+import { ConfirmationDialog } from './components/Shared/ConfirmationDialog';
 
 export default function SidePanel() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const { settings, setSettings } = useSettings();
   const [activeTab, setActiveTab] = useState<'notes' | 'tasks'>('notes');
-  const [selectedNote, setSelectedNote] = useState<Note | null>(null);
-  const [newNote, setNewNote] = useState('');
   const [isDarkMode, setIsDarkMode] = useState(settings.theme === 'dark');
   const [filterOrbit, setFilterOrbit] = useState<string>('All Orbits');
   const [filterScope, setFilterScope] = useState<'url' | 'global'>('global');
-  const [creationScope, setCreationScope] = useState<'url' | 'global'>('url');
   const [creationOrbit, setCreationOrbit] = useState<string>('Ungrouped');
   const [isCreationOrbitDropdownOpen, setIsCreationOrbitDropdownOpen] = useState(false);
   const [isOrbitDropdownOpen, setIsOrbitDropdownOpen] = useState(false);
   const [isScopeDropdownOpen, setIsScopeDropdownOpen] = useState(false);
   const [activeMoreMenu, setActiveMoreMenu] = useState<string | null>(null);
   const [currentUrl, setCurrentUrl] = useState<string>('');
+  const [newOrbitName, setNewOrbitName] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [noteToDelete, setNoteToDelete] = useState<string | null>(null);
   const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
   const [selectedDueDate, setSelectedDueDate] = useState<Date | null>(null);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [copiedNoteId, setCopiedNoteId] = useState<string | null>(null);
-  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(() => {
-    const today = new Date();
-    return today;
-  });
   const [isNewOrbitInputVisible, setIsNewOrbitInputVisible] = useState(false);
-  const [newOrbitName, setNewOrbitName] = useState('');
 
   // Add date picker ref
   const datePickerRef = useRef<HTMLDivElement>(null);
@@ -53,22 +47,6 @@ export default function SidePanel() {
 
   // Add new state for orbit assignment
   const [isOrbitAssignmentOpen, setIsOrbitAssignmentOpen] = useState<string | null>(null);
-
-  // Helper function to check if a date is in the past
-  const isDateInPast = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return date < today;
-  };
-
-  // Helper function to check if we're viewing the current week
-  const isCurrentWeek = (date: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const startOfToday = new Date(today);
-    startOfToday.setDate(today.getDate());
-    return date.getTime() === startOfToday.getTime();
-  };
 
   // Load notes and tasks from Chrome storage on mount
   useEffect(() => {
@@ -123,14 +101,14 @@ export default function SidePanel() {
     };
   }, [isDatePickerOpen]);
 
-  const handleAddNote = () => {
-    if (newNote.trim()) {
+  const handleAddNote = (content: string, isGlobal: boolean) => {
+    if (content.trim()) {
       const newNoteObj: Note = {
         id: Date.now().toString(),
-        content: newNote,
-        url: creationScope === 'url' ? currentUrl : null,
+        content: content,
+        url: isGlobal ? null : currentUrl,
         orbit: creationOrbit,
-        scope: creationScope,
+        scope: isGlobal ? 'global' : 'url',
         createdAt: Date.now()
       };
 
@@ -138,22 +116,18 @@ export default function SidePanel() {
         const updatedNotes = [...(result.notes || []), newNoteObj];
         chrome.storage.local.set({ notes: updatedNotes }, () => {
           setNotes(updatedNotes);
-          setNewNote('');
-          if (inputRef.current) {
-            inputRef.current.value = '';
-          }
         });
       });
     }
   };
 
-  const handleAddTask = () => {
-    if (newNote.trim()) {
+  const handleAddTask = (content: string, isGlobal: boolean) => {
+    if (content.trim()) {
       const newTaskObj: Task = {
         id: Date.now().toString(),
-        content: newNote,
-        url: creationScope === 'url' ? currentUrl : null,
-        scope: creationScope,
+        content: content,
+        url: isGlobal ? null : currentUrl,
+        scope: isGlobal ? 'global' : 'url',
         orbit: creationOrbit,
         completed: false,
         createdAt: Date.now(),
@@ -164,11 +138,7 @@ export default function SidePanel() {
         const updatedTasks = [...(result.tasks || []), newTaskObj];
         chrome.storage.local.set({ tasks: updatedTasks }, () => {
           setTasks(updatedTasks);
-          setNewNote('');
           setSelectedDueDate(null);
-          if (inputRef.current) {
-            inputRef.current.value = '';
-          }
         });
       });
     }
@@ -267,10 +237,7 @@ export default function SidePanel() {
     ? 'ext-bg-[#030303] ext-text-white/70 ext-border-white/[0.05]'
     : 'ext-bg-white ext-text-gray-800 ext-border-gray-200';
 
-  const themeHoverClasses = isDarkMode
-    ? 'hover:ext-bg-white/[0.03] hover:ext-border-indigo-500/20'
-    : 'hover:ext-bg-gray-50 hover:ext-border-indigo-200';
-
+  
   // Add click handlers for the filter dropdowns
   const handleOrbitFilter = (orbit: string) => {
     setFilterOrbit(orbit);
@@ -294,38 +261,60 @@ export default function SidePanel() {
         target.closest('.orbit-assignment-dropdown') ||
         target.closest('.creation-orbit-dropdown') ||
         target.closest('.new-orbit-input') ||
-        target.closest('.date-picker-dropdown');
+        target.closest('.date-picker-dropdown') ||
+        target.closest('button') || // Don't close when clicking buttons
+        target.closest('input'); // Don't close when clicking inputs
 
-      // If clicking inside dropdowns, don't close anything
+      // If clicking inside dropdowns, buttons, or inputs, don't close anything
       if (isInsideDropdown) {
+        console.log('Click inside dropdown detected, not closing');
         return;
       }
 
-      // Close all dropdowns when clicking outside
-      setIsOrbitDropdownOpen(false);
-      setIsScopeDropdownOpen(false);
-      setIsCreationOrbitDropdownOpen(false);
-      setIsOrbitAssignmentOpen(null);
-      setIsNewOrbitInputVisible(false);
-      setNewOrbitName('');
-      setIsDatePickerOpen(false);
+      // Log the current state before closing
+      console.log('Click outside detected, current state:', {
+        isNewOrbitInputVisible,
+        isOrbitAssignmentOpen,
+        isCreationOrbitDropdownOpen
+      });
+
+      // Only close dropdowns that aren't part of the orbit creation flow if we're creating an orbit
+      if (isNewOrbitInputVisible && isOrbitAssignmentOpen === 'creation') {
+        // Keep the creation-related dropdowns open
+        console.log('In orbit creation flow, keeping creation dropdowns open');
+        setIsOrbitDropdownOpen(false);
+        setIsScopeDropdownOpen(false);
+        setIsDatePickerOpen(false);
+      } else {
+        // Close all dropdowns when clicking outside
+        console.log('Closing all dropdowns');
+        setIsOrbitDropdownOpen(false);
+        setIsScopeDropdownOpen(false);
+        setIsCreationOrbitDropdownOpen(false);
+        setIsOrbitAssignmentOpen(null);
+        setIsNewOrbitInputVisible(false);
+        setNewOrbitName('');
+        setIsDatePickerOpen(false);
+      }
     };
 
     // Add the event listener to the document
     document.addEventListener('mousedown', handleClickOutside, true);
     return () => document.removeEventListener('mousedown', handleClickOutside, true);
-  }, []);
+  }, [isNewOrbitInputVisible, isOrbitAssignmentOpen]);
 
   // Update the orbit dropdown button to stop propagation
   const handleOrbitDropdownToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsOrbitDropdownOpen(!isOrbitDropdownOpen);
+    setIsScopeDropdownOpen(false);
   };
 
   // Update the scope dropdown button to stop propagation
   const handleScopeDropdownToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     setIsScopeDropdownOpen(!isScopeDropdownOpen);
+    setIsOrbitDropdownOpen(false);
   };
 
   // Add function to handle orbit assignment toggle
@@ -334,62 +323,7 @@ export default function SidePanel() {
     setIsOrbitAssignmentOpen(isOrbitAssignmentOpen === noteId ? null : noteId);
   };
 
-  // Update the date picker button to stop propagation
-  const handleDatePickerToggle = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsDatePickerOpen(!isDatePickerOpen);
-  };
 
-  // Update the orbit dropdown render function
-  const renderOrbitDropdown = () => (
-    <div 
-      className={`orbit-dropdown ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={() => handleOrbitFilter('All Orbits')}
-        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-      >
-        <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> All Orbits
-      </button>
-      <button
-        onClick={() => handleOrbitFilter('Only Ungrouped Notes')}
-        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-      >
-        <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> Only Ungrouped Notes
-      </button>
-      {Array.from(new Set(notes.map(note => note.orbit).filter((orbit): orbit is string => orbit !== undefined))).map((orbit) => (
-        <button
-          key={orbit}
-          onClick={() => handleOrbitFilter(orbit)}
-          className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-        >
-          <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> {orbit}
-        </button>
-      ))}
-    </div>
-  );
-
-  // Update the scope dropdown render function
-  const renderScopeDropdown = () => (
-    <div 
-      className={`scope-dropdown ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <button
-        onClick={() => handleScopeFilter('global')}
-        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-      >
-        <Globe className="ext-w-4 ext-h-4 ext-opacity-70" /> All Notes
-      </button>
-      <button
-        onClick={() => handleScopeFilter('url')}
-        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-      >
-        <LinkIcon className="ext-w-4 ext-h-4 ext-opacity-70" /> Page Notes
-      </button>
-    </div>
-  );
 
   const handleOpenSettings = () => {
     chrome.runtime.sendMessage({ type: MESSAGE_TYPES.OPEN_OPTIONS });
@@ -448,180 +382,27 @@ export default function SidePanel() {
     }
   };
 
-  // Add confirmation dialog component
-  const DeleteConfirmationDialog = ({ noteId }: { noteId: string }) => {
-    const note = notes.find(n => n.id === noteId);
-    if (!note) return null;
-
-    return (
-      <div className="ext-fixed ext-inset-0 ext-bg-black/50 ext-backdrop-blur-sm ext-z-50 ext-flex ext-items-center ext-justify-center">
-        <div className={`ext-w-[400px] ext-p-6 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-white ext-border-gray-200 ext-text-gray-800'}`}>
-          <div className="ext-flex ext-items-center ext-gap-3 ext-mb-4">
-            <AlertCircle className={`ext-w-5 ext-h-5 ${isDarkMode ? 'ext-text-red-400' : 'ext-text-red-500'}`} />
-            <h3 className={`ext-text-lg ext-font-medium ${isDarkMode ? 'ext-text-white' : 'ext-text-gray-900'}`}>Delete Note</h3>
-          </div>
-          <p className="ext-mb-6">Are you sure you want to delete this note? This action cannot be undone.</p>
-          <div className="ext-flex ext-gap-3 ext-justify-end">
-            <button
-              onClick={() => setNoteToDelete(null)}
-              className={`ext-px-4 ext-py-2 ext-rounded-lg ext-text-sm ext-font-medium ${isDarkMode ? 'ext-text-white/70 hover:ext-text-white ext-bg-white/[0.05] hover:ext-bg-white/[0.1]' : 'ext-text-gray-600 hover:ext-text-gray-900 ext-bg-gray-100 hover:ext-bg-gray-200'} ext-transition-colors`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => deleteNote(noteId)}
-              className="ext-px-4 ext-py-2 ext-rounded-lg ext-text-sm ext-font-medium ext-bg-red-500 ext-text-white hover:ext-bg-red-600 ext-transition-colors"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Add Task confirmation dialog component
-  const DeleteTaskConfirmationDialog = ({ taskId }: { taskId: string }) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return null;
-
-    return (
-      <div className="ext-fixed ext-inset-0 ext-bg-black/50 ext-backdrop-blur-sm ext-z-50 ext-flex ext-items-center ext-justify-center">
-        <div className={`ext-w-[400px] ext-p-6 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-white ext-border-gray-200 ext-text-gray-800'}`}>
-          <div className="ext-flex ext-items-center ext-gap-3 ext-mb-4">
-            <AlertCircle className={`ext-w-5 ext-h-5 ${isDarkMode ? 'ext-text-red-400' : 'ext-text-red-500'}`} />
-            <h3 className={`ext-text-lg ext-font-medium ${isDarkMode ? 'ext-text-white' : 'ext-text-gray-900'}`}>Delete Task</h3>
-          </div>
-          <p className="ext-mb-6">Are you sure you want to delete this task? This action cannot be undone.</p>
-          <div className="ext-flex ext-gap-3 ext-justify-end">
-            <button
-              onClick={() => setTaskToDelete(null)}
-              className={`ext-px-4 ext-py-2 ext-rounded-lg ext-text-sm ext-font-medium ${isDarkMode ? 'ext-text-white/70 hover:ext-text-white ext-bg-white/[0.05] hover:ext-bg-white/[0.1]' : 'ext-text-gray-600 hover:ext-text-gray-900 ext-bg-gray-100 hover:ext-bg-gray-200'} ext-transition-colors`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => deleteTask(taskId)}
-              className="ext-px-4 ext-py-2 ext-rounded-lg ext-text-sm ext-font-medium ext-bg-red-500 ext-text-white hover:ext-bg-red-600 ext-transition-colors"
-            >
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  // Add NoteDetailView component
-  const NoteDetailView = ({ note, onBack }: { note: Note; onBack: () => void }) => {
-    return (
-      <div className="ext-h-full ext-flex ext-flex-col">
-        {/* Header */}
-        <div className="ext-flex ext-items-center ext-gap-2 ext-mb-6">
-          <button
-            onClick={onBack}
-            className={`ext-p-1 ext-rounded-full ${isDarkMode ? 'hover:ext-bg-white/10' : 'hover:ext-bg-gray-100'} ext-transition-colors`}
-          >
-            <ChevronLeft className={`ext-w-5 ext-h-5 ${isDarkMode ? 'ext-text-white/50' : 'ext-text-gray-400'}`} />
-          </button>
-          <h2 className={`ext-text-md ext-font-medium ${isDarkMode ? 'ext-text-white' : 'ext-text-gray-900'}`}>
-            Note Details
-          </h2>
-        </div>
-
-        {/* Content */}
-        <div className="ext-flex-1 ext-overflow-y-auto">
-          <div className={`ext-p-6 ext-rounded-lg ext-border ${themeClasses} ${themeHoverClasses}`}>
-            {/* Metadata */}
-            <div className="ext-flex ext-items-center ext-gap-2 ext-mb-4">
-              <div className="ext-flex ext-items-center ext-gap-1">
-                <span
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setIsOrbitAssignmentOpen(isOrbitAssignmentOpen === note.id ? null : note.id);
-                  }}
-                  className={`orbit-button ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ext-cursor-pointer ext-transition-colors ${note.orbit === 'Ungrouped'
-                    ? isDarkMode
-                      ? 'ext-bg-white/[0.05] ext-text-white/50 hover:ext-bg-white/[0.1]'
-                      : 'ext-bg-gray-100 ext-text-gray-500 hover:ext-bg-gray-200'
-                    : isDarkMode
-                      ? 'ext-bg-indigo-500/20 ext-text-indigo-300 hover:ext-bg-indigo-500/30'
-                      : 'ext-bg-indigo-100 ext-text-indigo-600 hover:ext-bg-indigo-200'}`}
-                >
-                  <Orbit className="ext-w-3 ext-h-3" /> {note.orbit}
-                  {isOrbitAssignmentOpen === note.id && (
-                    <OrbitAssignmentDropdown itemId={note.id} />
-                  )}
-                </span>
-              </div>
-              <span className={`ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ${note.scope === 'global'
-                ? isDarkMode
-                  ? 'ext-bg-purple-500/20 ext-text-purple-300'
-                  : 'ext-bg-purple-100 ext-text-purple-600'
-                : isDarkMode
-                  ? 'ext-bg-blue-500/20 ext-text-blue-300'
-                  : 'ext-bg-blue-100 ext-text-blue-600'}`}>
-                {note.scope === 'global' ? <Globe className="ext-w-3 ext-h-3" /> : <LinkIcon className="ext-w-3 ext-h-3" />} {note.scope === 'global' ? 'Unlinked' : 'Linked'}
-              </span>
-            </div>
-
-            {/* Note Content */}
-            <div className={`ext-text-sm ${isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-800'} ext-whitespace-pre-wrap ext-mb-6`}>
-              {note.content}
-            </div>
-
-            {/* URL on its own line */}
-            {note.url && (
-              <div className="ext-mb-3">
-                <a
-                  href={note.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={`ext-flex ext-items-center ext-gap-1 ext-text-xs ${isDarkMode ? 'ext-text-indigo-300 hover:ext-text-indigo-400' : 'ext-text-indigo-600 hover:ext-text-indigo-800'} ext-transition-colors ext-break-all`}
-                >
-                  <LinkIcon className="ext-w-3 ext-h-3 ext-shrink-0" />
-                  <span>{note.url}</span>
-                </a>
-              </div>
-            )}
-
-            {/* Actions on their own line, right-aligned */}
-            <div className="ext-flex ext-justify-end ext-items-center ext-gap-2">
-              <button
-                onClick={() => handleShareNote(note)}
-                className={`ext-p-1 ext-rounded ${isDarkMode ? 'hover:ext-bg-white/10' : 'hover:ext-bg-gray-100'} ext-transition-colors ext-relative`}
-              >
-                <Share2 className={`ext-w-3 ext-h-3 ${isDarkMode ? 'ext-text-white/50 hover:ext-text-indigo-300' : 'ext-text-gray-500 hover:ext-text-indigo-500'}`} />
-                {copiedNoteId === note.id && (
-                  <span className={`ext-absolute ext-left-1/2 ext-top-1/2 -ext-translate-x-1/2 -ext-translate-y-1/2 ext-text-xs ext-font-medium ext-px-2 ext-py-1 ext-rounded ext-bg-indigo-500 ext-text-white ext-whitespace-nowrap`}>
-                    Copied!
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setNoteToDelete(note.id);
-                }}
-                className={`ext-p-1 ext-rounded ${isDarkMode ? 'hover:ext-bg-white/10' : 'hover:ext-bg-gray-100'} ext-transition-colors`}
-              >
-                <Trash className={`ext-w-3 ext-h-3 ${isDarkMode ? 'ext-text-red-400 hover:ext-text-red-300' : 'ext-text-red-500 hover:ext-text-red-600'}`} />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   // Add function to handle orbit assignment
-  const handleOrbitAssignment = (noteId: string, orbit: string) => {
-    chrome.storage.local.get(['notes'], (result) => {
+  const handleOrbitAssignment = (itemId: string, orbit: string) => {
+    // Handle notes
+    chrome.storage.local.get(['notes', 'tasks'], (result) => {
+      // Try to find the item in notes first
       const updatedNotes = (result.notes || []).map((note: Note) =>
-        note.id === noteId ? { ...note, orbit } : note
+        note.id === itemId ? { ...note, orbit } : note
       );
-      chrome.storage.local.set({ notes: updatedNotes }, () => {
+      
+      // Try to find the item in tasks
+      const updatedTasks = (result.tasks || []).map((task: Task) =>
+        task.id === itemId ? { ...task, orbit } : task
+      );
+
+      // Update both notes and tasks
+      chrome.storage.local.set({ 
+        notes: updatedNotes,
+        tasks: updatedTasks
+      }, () => {
         setNotes(updatedNotes);
+        setTasks(updatedTasks);
         setIsOrbitAssignmentOpen(null);
       });
     });
@@ -643,102 +424,6 @@ export default function SidePanel() {
     }
   };
 
-  // Add NewOrbitInput component for creation
-  const NewOrbitInput = () => (
-    <div 
-      className={`new-orbit-input ext-absolute ext-right-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[200px] ext-py-2 ext-px-3 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-      }}
-    >
-      <input
-        type="text"
-        value={newOrbitName}
-        onChange={(e) => setNewOrbitName(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') {
-            handleCreateNewOrbit();
-          } else if (e.key === 'Escape') {
-            setIsNewOrbitInputVisible(false);
-            setNewOrbitName('');
-            setIsOrbitAssignmentOpen(null);
-            setIsCreationOrbitDropdownOpen(false); // Close the dropdown on escape
-          }
-        }}
-        placeholder="Enter orbit name..."
-        className={`ext-w-full ext-px-2 ext-py-1 ext-rounded ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-border focus:ext-outline-none focus:ext-border-indigo-500/30`}
-        autoFocus
-      />
-      <div className="ext-flex ext-gap-2 ext-mt-2">
-        <button
-          onClick={() => {
-            setIsNewOrbitInputVisible(false);
-            setNewOrbitName('');
-            setIsOrbitAssignmentOpen(null);
-            setIsCreationOrbitDropdownOpen(false); // Close the dropdown on cancel
-          }}
-          className={`ext-flex-1 ext-px-2 ext-py-1 ext-rounded ext-text-xs ${isDarkMode ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05]' : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50'}`}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={handleCreateNewOrbit}
-          className="ext-flex-1 ext-px-2 ext-py-1 ext-rounded ext-text-xs ext-bg-indigo-500 ext-text-white hover:ext-bg-indigo-400"
-        >
-          Create
-        </button>
-      </div>
-    </div>
-  );
-
-  // Update the creation orbit dropdown render function
-  const renderCreationOrbitDropdown = () => (
-    <div 
-      className={`creation-orbit-dropdown ext-absolute ext-right-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[200px] ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
-      onClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-      }}
-    >
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          setCreationOrbit('Ungrouped');
-          setIsCreationOrbitDropdownOpen(false);
-        }}
-        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-      >
-        <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> Ungrouped
-      </button>
-      {getUniqueOrbits().map((orbit) => (
-        <button
-          key={orbit}
-          onClick={(e) => {
-            e.stopPropagation();
-            setCreationOrbit(orbit);
-            setIsCreationOrbitDropdownOpen(false);
-          }}
-          className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-        >
-          <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> {orbit}
-        </button>
-      ))}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-          setIsNewOrbitInputVisible(true);
-          setIsOrbitAssignmentOpen('creation');
-          // Don't close the dropdown here
-        }}
-        className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-      >
-        <Plus className="ext-w-4 ext-h-4 ext-opacity-70" /> New Orbit
-      </button>
-    </div>
-  );
-
   // Add function to get unique orbits
   const getUniqueOrbits = () => {
     const noteOrbits = notes.map(note => note.orbit).filter((orbit): orbit is string => orbit !== undefined);
@@ -746,84 +431,30 @@ export default function SidePanel() {
     return Array.from(new Set([...noteOrbits, ...taskOrbits]));
   };
 
-  // Update the OrbitAssignmentDropdown component to include the class
-  const OrbitAssignmentDropdown = ({ itemId }: { itemId: string }) => (
-    <div 
-      className={`orbit-assignment-dropdown ext-absolute ext-left-0 ext-right-0 ext-mt-1 ext-py-1 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
-    >
-      {!isNewOrbitInputVisible ? (
-        <>
-          <button
-            onClick={() => handleOrbitAssignment(itemId, 'Ungrouped')}
-            className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-          >
-            <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> Ungrouped
-          </button>
-          {getUniqueOrbits().map((orbit: string) => (
-            <button
-              key={orbit}
-              onClick={() => handleOrbitAssignment(itemId, orbit)}
-              className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-            >
-              <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" /> {orbit}
-            </button>
-          ))}
-          <button
-            onClick={() => setIsNewOrbitInputVisible(true)}
-            className={`ext-w-full ext-px-3 ext-py-2 ext-text-left ext-text-xs ext-flex ext-items-center ext-gap-2 ${isDarkMode ? 'ext-text-white/70 hover:ext-bg-white/[0.05]' : 'ext-text-gray-800 hover:ext-bg-gray-50'} ext-transition-colors`}
-          >
-            <Plus className="ext-w-4 ext-h-4 ext-opacity-70" /> New Orbit
-          </button>
-        </>
-      ) : (
-        <div className="ext-px-3 ext-py-2">
-          <input
-            type="text"
-            value={newOrbitName}
-            onChange={(e) => setNewOrbitName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                handleCreateNewOrbit();
-              } else if (e.key === 'Escape') {
-                setIsNewOrbitInputVisible(false);
-                setNewOrbitName('');
-                setIsOrbitAssignmentOpen(null);
-              }
-            }}
-            placeholder="Enter orbit name..."
-            className={`ext-w-full ext-px-2 ext-py-1 ext-rounded ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-border focus:ext-outline-none focus:ext-border-indigo-500/30`}
-            autoFocus
-          />
-          <div className="ext-flex ext-gap-2 ext-mt-2">
-            <button
-              onClick={() => {
-                setIsNewOrbitInputVisible(false);
-                setNewOrbitName('');
-                setIsOrbitAssignmentOpen(null);
-              }}
-              className={`ext-flex-1 ext-px-2 ext-py-1 ext-rounded ext-text-xs ${isDarkMode ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05]' : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50'}`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleCreateNewOrbit}
-              className="ext-flex-1 ext-px-2 ext-py-1 ext-rounded ext-text-xs ext-bg-indigo-500 ext-text-white hover:ext-bg-indigo-400"
-            >
-              Create
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-
   return (
     <AnimatePresence>
       {isOpen && (
         <>
-          {/* Existing modal content */}
-          {noteToDelete && <DeleteConfirmationDialog noteId={noteToDelete} />}
-          {taskToDelete && <DeleteTaskConfirmationDialog taskId={taskToDelete} />}
+          {noteToDelete && (
+            <ConfirmationDialog
+              title="Delete Note"
+              message="Are you sure you want to delete this note? This action cannot be undone."
+              onConfirm={() => deleteNote(noteToDelete)}
+              onCancel={() => setNoteToDelete(null)}
+              isDarkMode={isDarkMode}
+              isDestructive={true}
+            />
+          )}
+          {taskToDelete && (
+            <ConfirmationDialog
+              title="Delete Task"
+              message="Are you sure you want to delete this task? This action cannot be undone."
+              onConfirm={() => deleteTask(taskToDelete)}
+              onCancel={() => setTaskToDelete(null)}
+              isDarkMode={isDarkMode}
+              isDestructive={true}
+            />
+          )}
 
           {/* Backdrop */}
           <motion.div
@@ -832,12 +463,12 @@ export default function SidePanel() {
             exit={{ opacity: 0 }}
             className="ext-fixed ext-inset-0 ext-bg-black/50 ext-backdrop-blur-sm ext-z-40"
             onClick={(e) => {
-              // Only close if clicking directly on the backdrop
               if (e.target === e.currentTarget) {
                 setIsOpen(false);
               }
             }}
           />
+          
           {/* Panel */}
           <motion.div
             initial={{ x: '100%' }}
@@ -846,7 +477,6 @@ export default function SidePanel() {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className={`ext-fixed ext-right-0 ext-top-0 ext-h-full ext-w-[400px] ext-border-l ${themeClasses} ext-z-50`}
             onMouseDown={(e) => {
-              // Only prevent default if clicking outside of input elements
               if (!(e.target instanceof HTMLInputElement ||
                 e.target instanceof HTMLTextAreaElement ||
                 e.target instanceof HTMLButtonElement)) {
@@ -855,7 +485,6 @@ export default function SidePanel() {
               e.stopPropagation();
             }}
             onKeyDown={(e) => {
-              // Only prevent propagation if not in an input element
               if (!(e.target instanceof HTMLInputElement ||
                 e.target instanceof HTMLTextAreaElement ||
                 e.target instanceof HTMLButtonElement)) {
@@ -864,374 +493,85 @@ export default function SidePanel() {
             }}
           >
             <div className="ext-p-6 ext-h-full ext-flex ext-flex-col">
-              {/* Header */}
-              <div className="ext-flex ext-justify-between ext-items-center ext-mb-6">
-                <div className="ext-flex ext-items-center ext-gap-2">
-                  <Circle className={`ext-w-5 ext-h-5 ${isDarkMode ? 'ext-text-indigo-300' : 'ext-text-indigo-500'}`} strokeWidth={2.5} />
-                  <h2 className={`ext-text-lg ext-font-medium ${isDarkMode ? 'ext-text-white' : 'ext-text-gray-900'}`}>
-                    Halo
-                  </h2>
-                </div>
-                <button
-                  onClick={() => setIsOpen(false)}
-                  className={`ext-p-1 ext-rounded-full ${isDarkMode ? 'hover:ext-bg-white/10' : 'hover:ext-bg-gray-100'} ext-transition-colors`}
-                >
-                  <X className={`ext-w-5 ext-h-5 ${isDarkMode ? 'ext-text-white/50' : 'ext-text-gray-400'}`} />
-                </button>
-              </div>
-
-              {/* Search Bar */}
-              <div className="ext-relative ext-mb-6">
-                <Search className={`ext-absolute ext-left-3 ext-top-1/2 -ext-translate-y-1/2 ext-w-4 ext-h-4 ${isDarkMode ? 'ext-text-white/30' : 'ext-text-gray-400'}`} />
-                <input
-                  type="text"
-                  placeholder="Search your thoughts..."
-                  className={`ext-w-full ext-pl-10 ext-pr-4 ext-py-2 ext-rounded-lg ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70 ext-placeholder-white/30' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800 ext-placeholder-gray-400'} ext-border ext-text-sm focus:ext-outline-none focus:ext-border-indigo-500/30 ext-transition-colors`}
-                />
-              </div>
-
-              {/* Tabs */}
-              <div className="ext-flex ext-gap-2 ext-mb-6">
-                <button
-                  onClick={() => setActiveTab('notes')}
-                  className={`ext-flex-1 ext-py-2 ext-rounded-lg ext-text-sm ext-font-medium ext-transition-colors ${activeTab === 'notes'
-                    ? 'ext-bg-indigo-500 ext-text-white'
-                    : isDarkMode ? 'ext-text-white/50 hover:ext-text-white' : 'ext-text-gray-500 hover:ext-text-gray-900'
-                    }`}
-                >
-                  Notes
-                </button>
-                <button
-                  onClick={() => setActiveTab('tasks')}
-                  className={`ext-flex-1 ext-py-2 ext-rounded-lg ext-text-sm ext-font-medium ext-transition-colors ${activeTab === 'tasks'
-                    ? 'ext-bg-indigo-500 ext-text-white'
-                    : isDarkMode ? 'ext-text-white/50 hover:ext-text-white' : 'ext-text-gray-500 hover:ext-text-gray-900'
-                    }`}
-                >
-                  Tasks
-                </button>
-              </div>
+              <Header onClose={() => setIsOpen(false)} isDarkMode={isDarkMode} />
+              <SearchBar isDarkMode={isDarkMode} />
+              <TabNavigation 
+                activeTab={activeTab}
+                onTabChange={setActiveTab}
+                isDarkMode={isDarkMode}
+              />
 
               {/* Content Area */}
               <div className="ext-flex-1 ext-overflow-y-auto">
                 {activeTab === 'notes' ? (
-                  selectedNote ? (
-                    <NoteDetailView
-                      note={selectedNote}
-                      onBack={() => setSelectedNote(null)}
-                    />
-                  ) : (
-                    <NotesView
-                      notes={notes}
-                      isDarkMode={isDarkMode}
-                      currentUrl={currentUrl}
-                      filterOrbit={filterOrbit}
-                      filterScope={filterScope}
-                      isOrbitDropdownOpen={isOrbitDropdownOpen}
-                      isScopeDropdownOpen={isScopeDropdownOpen}
-                      isOrbitAssignmentOpen={isOrbitAssignmentOpen}
-                      handleOrbitDropdownToggle={handleOrbitDropdownToggle}
-                      handleScopeDropdownToggle={handleScopeDropdownToggle}
-                      handleOrbitFilter={handleOrbitFilter}
-                      handleScopeFilter={handleScopeFilter}
-                      handleOrbitAssignmentToggle={handleOrbitAssignmentToggle}
-                      handleShareNote={handleShareNote}
-                      setNoteToDelete={setNoteToDelete}
-                      copiedNoteId={copiedNoteId}
-                      handleOrbitAssignment={handleOrbitAssignment}
-                      setIsNewOrbitInputVisible={setIsNewOrbitInputVisible}
-                      setIsOrbitAssignmentOpen={setIsOrbitAssignmentOpen}
-                    />
-                  )
+                  <NotesView
+                    notes={notes}
+                    isDarkMode={isDarkMode}
+                    currentUrl={currentUrl}
+                    filterOrbit={filterOrbit}
+                    filterScope={filterScope}
+                    isOrbitDropdownOpen={isOrbitDropdownOpen}
+                    isScopeDropdownOpen={isScopeDropdownOpen}
+                    isOrbitAssignmentOpen={isOrbitAssignmentOpen}
+                    handleOrbitDropdownToggle={handleOrbitDropdownToggle}
+                    handleScopeDropdownToggle={handleScopeDropdownToggle}
+                    handleOrbitFilter={handleOrbitFilter}
+                    handleScopeFilter={handleScopeFilter}
+                    handleOrbitAssignmentToggle={handleOrbitAssignmentToggle}
+                    handleShareNote={handleShareNote}
+                    setNoteToDelete={setNoteToDelete}
+                    copiedNoteId={copiedNoteId}
+                    handleOrbitAssignment={handleOrbitAssignment}
+                    setIsNewOrbitInputVisible={setIsNewOrbitInputVisible}
+                    setIsOrbitAssignmentOpen={setIsOrbitAssignmentOpen}
+                  />
                 ) : (
-                  <div className="ext-space-y-4">
-                    {/* Filter Bar */}
-                    <div className="ext-flex ext-gap-2 ext-mb-4">
-                      {/* Orbit Filter */}
-                      <div className="ext-relative ext-flex-1">
-                        <button
-                          onClick={handleOrbitDropdownToggle}
-                          className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
-                        >
-                          <Orbit className="ext-w-4 ext-h-4 ext-opacity-70" />
-                          <span className="ext-truncate">{filterOrbit}</span>
-                          <span className={`ext-ml-auto ext-transform ext-transition-transform ${isOrbitDropdownOpen ? 'ext-rotate-180' : ''}`}>▾</span>
-                        </button>
-                        {/* Orbit Dropdown */}
-                        {isOrbitDropdownOpen && renderOrbitDropdown()}
-                      </div>
-
-                      {/* Scope Filter */}
-                      <div className="ext-relative ext-flex-1">
-                        <button
-                          onClick={handleScopeDropdownToggle}
-                          className={`ext-w-full ext-px-3 ext-py-1.5 ext-rounded-lg ext-border ext-flex ext-items-center ext-gap-2 ext-text-xs ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800'} ext-transition-colors`}
-                        >
-                          {filterScope === 'global' && <Globe className="ext-w-4 ext-h-4 ext-opacity-70" />}
-                          {filterScope === 'url' && <LinkIcon className="ext-w-4 ext-h-4 ext-opacity-70" />}
-                          <span className="ext-truncate">
-                            {filterScope === 'global' ? 'All Notes' : 'Page Notes'}
-                          </span>
-                          <span className={`ext-ml-auto ext-transform ext-transition-transform ${isScopeDropdownOpen ? 'ext-rotate-180' : ''}`}>▾</span>
-                        </button>
-                        {/* Scope Dropdown */}
-                        {isScopeDropdownOpen && renderScopeDropdown()}
-                      </div>
-                    </div>
-
-                    {/* Tasks List */}
-                    {tasks
-                      .filter(task => {
-                        // First filter by scope
-                        if (filterScope === 'global') return true;
-                        return task.url === currentUrl;
-                      })
-                      .map(task => (
-                        <div
-                          key={task.id}
-                          className={`ext-flex ext-items-center ext-gap-3 ext-p-4 ext-rounded-lg ext-border ${themeClasses} ${themeHoverClasses} ext-transition-colors ext-group`}
-                        >
-                          <button
-                            onClick={() => toggleTask(task.id)}
-                            className={`ext-w-5 ext-h-5 ext-rounded ext-border ext-flex ext-items-center ext-justify-center ext-transition-colors ${task.completed
-                              ? isDarkMode
-                                ? 'ext-bg-indigo-500 ext-border-indigo-500'
-                                : 'ext-bg-indigo-500 ext-border-indigo-500'
-                              : isDarkMode
-                                ? 'ext-border-white/20 hover:ext-border-indigo-500'
-                                : 'ext-border-gray-300 hover:ext-border-indigo-500'
-                              }`}
-                          >
-                            {task.completed && <Check className="ext-w-3 ext-h-3 ext-text-white" />}
-                          </button>
-                          <div className="ext-flex ext-flex-col ext-flex-1">
-                            <span className={`ext-text-sm ${task.completed ? (isDarkMode ? 'ext-text-white/30' : 'ext-text-gray-400') : (isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-800')} ${task.completed ? 'ext-line-through' : ''}`}>
-                              {task.content}
-                            </span>
-                            {task.dueDate && (
-                              <div className={`ext-flex ext-items-center ext-gap-1 ext-text-xs ${isDarkMode ? 'ext-text-white/30' : 'ext-text-gray-400'} ext-mt-1`}>
-                                <Calendar className="ext-w-3 ext-h-3" />
-                                <span>{new Date(task.dueDate).toLocaleDateString()}</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="ext-flex ext-items-center ext-gap-2">
-                            <span
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setIsOrbitAssignmentOpen(isOrbitAssignmentOpen === task.id ? null : task.id);
-                              }}
-                              className={`orbit-button ext-flex ext-items-center ext-gap-1 ext-text-xs ext-px-2 ext-py-1 ext-rounded-full ext-font-medium ext-cursor-pointer ext-transition-colors ${task.orbit === 'Ungrouped'
-                                ? isDarkMode
-                                  ? 'ext-bg-white/[0.05] ext-text-white/50 hover:ext-bg-white/[0.1]'
-                                  : 'ext-bg-gray-100 ext-text-gray-500 hover:ext-bg-gray-200'
-                                : isDarkMode
-                                  ? 'ext-bg-indigo-500/20 ext-text-indigo-300 hover:ext-bg-indigo-500/30'
-                                  : 'ext-bg-indigo-100 ext-text-indigo-600 hover:ext-bg-indigo-200'}`}
-                            >
-                              <Orbit className="ext-w-3 ext-h-3" /> {task.orbit || 'Ungrouped'}
-                              {isOrbitAssignmentOpen === task.id && (
-                                <OrbitAssignmentDropdown itemId={task.id} />
-                              )}
-                            </span>
-                            <button
-                              onClick={(e) => {
-                                console.log('Delete button clicked');
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setTaskToDelete(task.id);
-                              }}
-                              className={`ext-p-1 ext-rounded ${isDarkMode ? 'hover:ext-bg-white/10' : 'hover:ext-bg-gray-100'} ext-transition-colors`}
-                            >
-                              <Trash className={`ext-w-3 ext-h-3 ${isDarkMode ? 'ext-text-red-400 hover:ext-text-red-300' : 'ext-text-red-500 hover:ext-text-red-600'}`} />
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
+                  <TasksView
+                    tasks={tasks}
+                    isDarkMode={isDarkMode}
+                    currentUrl={currentUrl}
+                    filterOrbit={filterOrbit}
+                    filterScope={filterScope}
+                    isOrbitDropdownOpen={isOrbitDropdownOpen}
+                    isScopeDropdownOpen={isScopeDropdownOpen}
+                    isOrbitAssignmentOpen={isOrbitAssignmentOpen}
+                    handleOrbitDropdownToggle={handleOrbitDropdownToggle}
+                    handleScopeDropdownToggle={handleScopeDropdownToggle}
+                    handleOrbitFilter={handleOrbitFilter}
+                    handleScopeFilter={handleScopeFilter}
+                    handleOrbitAssignmentToggle={handleOrbitAssignmentToggle}
+                    setTaskToDelete={setTaskToDelete}
+                    toggleTask={toggleTask}
+                    handleOrbitAssignment={handleOrbitAssignment}
+                    setIsNewOrbitInputVisible={setIsNewOrbitInputVisible}
+                    setIsOrbitAssignmentOpen={setIsOrbitAssignmentOpen}
+                  />
                 )}
               </div>
 
-              {/* New Note/Task Input */}
-              <div className={`ext-pt-6 ext-mt-6 ext-border-t ${isDarkMode ? 'ext-border-white/[0.05]' : 'ext-border-gray-200'}`}>
-                <div className="ext-space-y-4">
-                  {/* Quick Toggle Buttons */}
-                  <div className="ext-flex ext-gap-2 ext-relative ext-z-[51]">
-                    {/* Left side buttons */}
-                    <div className="ext-flex ext-gap-2">
-                      {/* Linked/Unlinked Toggle Button */}
-                      <button
-                        onClick={() => setCreationScope(creationScope === 'url' ? 'global' : 'url')}
-                        className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${creationScope === 'url'
-                          ? isDarkMode
-                            ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                            : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                          : isDarkMode
-                            ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
-                            : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
-                          }`}
-                      >
-                        {creationScope === 'url' ? (
-                          <LinkIcon className="ext-w-3 ext-h-3" />
-                        ) : (
-                          <Unlink className="ext-w-3 ext-h-3" />
-                        )}
-                      </button>
-
-                      {/* Due Date Button (only visible for tasks) */}
-                      {activeTab === 'tasks' && (
-                        <div className="ext-relative">
-                          <button
-                            onClick={handleDatePickerToggle}
-                            className={`ext-w-[40px] ext-flex ext-items-center ext-justify-center ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${selectedDueDate
-                              ? isDarkMode
-                                ? 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                                : 'ext-bg-indigo-500 ext-text-white ext-border-indigo-500'
-                              : isDarkMode
-                                ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]'
-                                : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'
-                              }`}
-                          >
-                            <Calendar className="ext-w-3 ext-h-3" />
-                          </button>
-
-                          {/* Date Picker Dropdown */}
-                          {isDatePickerOpen && (
-                            <div
-                              ref={datePickerRef}
-                              className={`date-picker-dropdown ext-absolute ext-left-0 ext-bottom-[calc(100%+0.5rem)] ext-w-[300px] ext-p-4 ext-rounded-lg ext-border ${isDarkMode ? 'ext-bg-[#030303] ext-border-white/[0.05]' : 'ext-bg-white ext-border-gray-200'} ext-shadow-lg ext-z-50`}
-                            >
-                              {/* Navigation Controls */}
-                              <div className="ext-flex ext-justify-between ext-items-center ext-mb-3">
-                                <button
-                                  onClick={() => {
-                                    const newStart = new Date(currentWeekStart);
-                                    newStart.setDate(newStart.getDate() - 7);
-                                    setCurrentWeekStart(newStart);
-                                  }}
-                                  disabled={isCurrentWeek(currentWeekStart)}
-                                  className={`ext-p-1 ext-rounded-full ${isCurrentWeek(currentWeekStart)
-                                    ? isDarkMode
-                                      ? 'ext-text-white/20 ext-cursor-not-allowed'
-                                      : 'ext-text-gray-300 ext-cursor-not-allowed'
-                                    : isDarkMode
-                                      ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
-                                      : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
-                                    } ext-transition-colors`}
-                                >
-                                  <ChevronLeft className="ext-w-4 ext-h-4" />
-                                </button>
-                                <span className={`ext-text-xs ext-font-medium ${isDarkMode ? 'ext-text-white/70' : 'ext-text-gray-600'
-                                  }`}>
-                                  {currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                                </span>
-                                <button
-                                  onClick={() => {
-                                    const newStart = new Date(currentWeekStart);
-                                    newStart.setDate(newStart.getDate() + 7);
-                                    setCurrentWeekStart(newStart);
-                                  }}
-                                  className={`ext-p-1 ext-rounded-full ${isDarkMode
-                                    ? 'ext-text-white/50 hover:ext-text-white hover:ext-bg-white/[0.1]'
-                                    : 'ext-text-gray-500 hover:ext-text-gray-900 hover:ext-bg-gray-100'
-                                    } ext-transition-colors`}
-                                >
-                                  <ChevronRight className="ext-w-4 ext-h-4" />
-                                </button>
-                              </div>
-                              <div className="ext-grid ext-grid-cols-7 ext-gap-2">
-                                {Array.from({ length: 7 }).map((_, i) => {
-                                  const date = new Date(currentWeekStart);
-                                  date.setDate(date.getDate() + i);
-                                  const isPastDate = isDateInPast(date);
-
-                                  return (
-                                    <button
-                                      key={i}
-                                      onClick={() => {
-                                        if (!isPastDate) {
-                                          setSelectedDueDate(date);
-                                          setIsDatePickerOpen(false);
-                                        }
-                                      }}
-                                      disabled={isPastDate}
-                                      className={`ext-p-2 ext-rounded ext-text-center ext-text-xs ${selectedDueDate?.toDateString() === date.toDateString()
-                                        ? 'ext-bg-indigo-500 ext-text-white'
-                                        : isPastDate
-                                          ? isDarkMode
-                                            ? 'ext-text-white/20 ext-cursor-not-allowed'
-                                            : 'ext-text-gray-300 ext-cursor-not-allowed'
-                                          : isDarkMode
-                                            ? 'ext-text-white/70 hover:ext-bg-white/[0.05]'
-                                            : 'ext-text-gray-800 hover:ext-bg-gray-50'
-                                        }`}
-                                    >
-                                      <div className="ext-font-medium">{date.toLocaleDateString('en-US', { weekday: 'short' })}</div>
-                                      <div className="ext-mt-1">{date.getDate()}</div>
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                              <button
-                                onClick={() => {
-                                  setSelectedDueDate(null);
-                                  setIsDatePickerOpen(false);
-                                }}
-                                className={`ext-w-full ext-mt-3 ext-p-2 ext-text-xs ext-rounded ${isDarkMode
-                                  ? 'ext-text-white/50 hover:ext-text-white ext-bg-white/[0.05] hover:ext-bg-white/[0.1]'
-                                  : 'ext-text-gray-500 hover:ext-text-gray-900 ext-bg-gray-50 hover:ext-bg-gray-100'
-                                  }`}
-                              >
-                                Clear Date
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Right side - Orbit Selection */}
-                    <div className="ext-relative ext-ml-auto">
-                      <button
-                        onClick={() => setIsCreationOrbitDropdownOpen(!isCreationOrbitDropdownOpen)}
-                        className={`ext-flex ext-items-center ext-gap-2 ext-px-3 ext-py-1.5 ext-text-xs ext-font-medium ext-rounded-lg ext-border ext-transition-colors ${isDarkMode ? 'ext-bg-white/[0.03] ext-text-white/50 hover:ext-text-white ext-border-white/[0.05]' : 'ext-bg-gray-50 ext-text-gray-500 hover:ext-text-gray-900 ext-border-gray-200'}`}
-                      >
-                        <Orbit className="ext-w-3 ext-h-3" />
-                        <span className="ext-truncate">{creationOrbit}</span>
-                      </button>
-
-                      {/* Creation Orbit Dropdown */}
-                      {isCreationOrbitDropdownOpen && renderCreationOrbitDropdown()}
-
-                      {/* New Orbit Input */}
-                      {isOrbitAssignmentOpen === 'creation' && <NewOrbitInput />}
-                    </div>
-                  </div>
-
-                  {/* Rich Text Input */}
-                  <div className="ext-flex ext-gap-2 ext-mb-20">
-                    <textarea
-                      ref={inputRef}
-                      value={newNote}
-                      onChange={(e) => setNewNote(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          activeTab === 'notes' ? handleAddNote() : handleAddTask();
-                        }
-                      }}
-                      placeholder={activeTab === 'notes' ? "Capture a thought..." : "Add a new task..."}
-                      className={`ext-flex-1 ext-px-4 ext-py-2 ext-rounded-lg ${isDarkMode ? 'ext-bg-white/[0.03] ext-border-white/[0.05] ext-text-white/70 ext-placeholder-white/30' : 'ext-bg-gray-50 ext-border-gray-200 ext-text-gray-800 ext-placeholder-gray-400'} ext-border ext-text-sm focus:ext-outline-none focus:ext-border-indigo-500/30 ext-transition-colors ext-min-h-[40px] ext-max-h-[120px] ext-overflow-y-auto ext-resize-none`}
-                    />
-                    <button
-                      onClick={activeTab === 'notes' ? handleAddNote : handleAddTask}
-                      className="ext-p-2 ext-rounded-lg ext-bg-indigo-500 ext-text-white hover:ext-bg-indigo-400 ext-transition-colors"
-                    >
-                      <Plus className="ext-w-4 ext-h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+              {/* Replace old creation UI with new CreationBar */}
+              <CreationBar
+                activeTab={activeTab}
+                isDarkMode={isDarkMode}
+                creationOrbit={creationOrbit}
+                setCreationOrbit={setCreationOrbit}
+                isCreationOrbitDropdownOpen={isCreationOrbitDropdownOpen}
+                setIsCreationOrbitDropdownOpen={setIsCreationOrbitDropdownOpen}
+                isNewOrbitInputVisible={isNewOrbitInputVisible}
+                setIsNewOrbitInputVisible={setIsNewOrbitInputVisible}
+                isOrbitAssignmentOpen={isOrbitAssignmentOpen}
+                setIsOrbitAssignmentOpen={setIsOrbitAssignmentOpen}
+                handleCreateNewOrbit={handleCreateNewOrbit}
+                selectedDueDate={selectedDueDate}
+                setSelectedDueDate={setSelectedDueDate}
+                isDatePickerOpen={isDatePickerOpen}
+                setIsDatePickerOpen={setIsDatePickerOpen}
+                onCreateNote={handleAddNote}
+                onCreateTask={handleAddTask}
+                newOrbitName={newOrbitName}
+                setNewOrbitName={setNewOrbitName}
+                existingOrbits={getUniqueOrbits()}
+              />
 
               {/* Footer */}
               <div className={`ext-pt-6 ext-mt-6 ext-border-t ${isDarkMode ? 'ext-border-white/[0.05]' : 'ext-border-gray-200'}`}>

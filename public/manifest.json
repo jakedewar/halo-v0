@@ -45,5 +45,20 @@
       "matches": ["*://*/*"]
     }
   ],
-  "permissions": ["tabs", "activeTab", "scripting", "storage"]
+  "permissions": [
+    "tabs",
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": ["*://*/*"],
+  "commands": {
+    "toggle-sidebar": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+H",
+        "mac": "Command+Shift+H"
+      },
+      "description": "Toggle the Halo sidebar"
+    }
+  }
 }
